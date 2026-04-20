@@ -5394,11 +5394,11 @@ task.spawn(header)
 
 -- Duplicate hopServer removed (Handled globaly)
 
-local OrionLib = loadstring(game:HttpGet("https://gist.githubusercontent.com/timprime837-sys/f0329995e8164fc79907975ef6f383fa/raw/b33b2cb9f85406a4525448cc2d76b6d306cbbe82/TrixoLib"))()
+local OrionLib = loadstring(game:HttpGet("https://moon-hub.pages.dev/orion.lua"))()
 
 
 local Window = OrionLib:MakeWindow({
-    Name = "Autorob", 
+    Name = "MoonHub - Autorob", 
     HidePremium = false,
     Intro = false,
     SaveConfig = true, 
@@ -5474,14 +5474,20 @@ GuiService.ErrorMessageChanged:Connect(function()
     end
 end)
 
-local Tab1 = Window:MakeTab({
-	Name = "Autorob ",
+local AutorobTab = Window:MakeTab({
+	Name = "Autorob",
 	Icon = "rbxassetid://4483345998",
 	PremiumOnly = false
 })
 
 local OptionsTab = Window:MakeTab({
     Name = "Rob Selections",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local VendingRobTab = Window:MakeTab({
+    Name = "Vending Rob",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
@@ -5498,7 +5504,7 @@ local ConfigTab = Window:MakeTab({
 	PremiumOnly = false
 })
 
-Tab1:AddToggle({
+AutorobTab:AddToggle({
     Name = "Auto Sell",
     Default = CurrentConfig.autoSell,
     Save = true,
@@ -5510,7 +5516,7 @@ Tab1:AddToggle({
     end    
 })
 
-Tab1:AddToggle({
+AutorobTab:AddToggle({
     Name = "ServerHop",
     Default = CurrentConfig.autoServerChanger,
     Save = true,
@@ -5555,7 +5561,7 @@ OptionsTab:AddMultiSelect({
     end    
 })
 
-OptionsTab:AddToggle({
+VendingRobTab:AddToggle({
     Name = "Vending Machine Robbery",
     Default = CurrentConfig.vendingRobbery,
     Save = true,
@@ -5567,7 +5573,7 @@ OptionsTab:AddToggle({
     end    
 })
 
-OptionsTab:AddDropdown({
+VendingRobTab:AddDropdown({
     Name = "Vending Machine Rob Priority",
     Default = CurrentConfig.vendingPriority,
     Options = {"After Main Robberys", "Before Main Robberys"},
