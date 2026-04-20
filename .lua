@@ -1611,32 +1611,23 @@ function startRobberyCycle()
             end
         end
         
-        -- 1. Zu deiner Parkposition fliegen/fahren
-        print("everything done, flying to parking spot for server hop...")
-        frameTween(CFrame.new(-884.2687377929688, 5.422751426696777, 3100.90283203125))
+        -- In der function header()
+print("Alles leer. Parke und bereite Rejoin vor...")
 
-        -- 2. Die gewünschten 500 Sekunden warten
-        print("waiting for 500 seconds before server hop...")
-        task.wait(500)
+-- Dein Park-Tween
+frameTween(CFrame.new(-884.2687377929688, 5.422751426696777, 3100.90283203125))
 
-        local queue = syn and syn.queue_on_teleport or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
-        
-        if queue then
-            local payload = [[
-                repeat task.wait() until game:IsLoaded()
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/fluxgitscripts/wdsatwdsa/refs/heads/main/.lua"))()
-            ]]
-            queue(payload)
-            print("Payload for rejoin has been added to the queue.")
-        else
-            warn("your executor does not support queue_on_teleport, the script may not work correctly after server hop!")
-        end
+-- Wir definieren den Payload einfach direkt in der Variable, die das Script eh nutzt
+getgenv().RejoinScript = [[
+    repeat task.wait() until game:IsLoaded()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/fluxgitscripts/wdsatwdsa/refs/heads/main/.lua"))()
+]]
 
-        -- 4. Jetzt erst den Server wechseln
-        print("Server hop...")
-        hopServer()
-    end
-end
+-- 500 Sekunden warten
+task.wait(500)
+
+-- Jetzt hopServer aufrufen. hopServer nutzt automatisch getgenv().RejoinScript
+hopServer()
 
 function checkGasRegion()
     frameTween(gasregion)    
