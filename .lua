@@ -284,7 +284,6 @@ local function findEmergencyServer()
                 emergencyServerId = servers[math.random(1, #servers)]
                 emergencyServerPlaceId = placeId
                 emergencyServerLastUpdate = tick()
-                )
                 return true
             end
         end
