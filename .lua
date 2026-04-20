@@ -26,6 +26,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local VirtualUser = game:GetService('VirtualUser')
 
+-- Config Manager (Filesystem Based)
 local ConfigFile = "VantaScriptsConfig1.lua"
 local DefaultConfig = {
     detectionRange = 60,
@@ -47,6 +48,7 @@ local DefaultConfig = {
 local CurrentConfig = {}
 for k, v in pairs(DefaultConfig) do CurrentConfig[k] = v end
 
+-- Drawing Feature Toggles
 _G.lockbypassdrawing = false
 _G.criminalappdrawing = false
 
@@ -172,22 +174,28 @@ end
 
 local PARKING_BRAKE_DISPLAY_ORDER = 28
 
+local function findParkingBrakeFrame()
+
+-- Prisoner Check Logic
 local function checkPrisonerAndWait()
     local team = LocalPlayer.Team
     if team and team.Name == "Prisoner" then
-
+        print("🔒 Oyuncu Prisoner takımında! Takım değişene kadar bekleniyor... (" .. team.Name .. ")")
+        
+        -- Loop until team is NOT Prisoner
         while LocalPlayer.Team and LocalPlayer.Team.Name == "Prisoner" do
             LocalPlayer:GetPropertyChangedSignal("Team"):Wait()
-            task.wait(1)
+            task.wait(1) -- Safety wait
         end
         
-        task.wait(2)
+        print("🔓 Takım değişti! Script devam ediyor...")
+        task.wait(2) -- Allow some time for initialization after team change
     end
 end
 
+-- Running check synchronously to block script execution if Prisoner
 checkPrisonerAndWait()
 
-local function findParkingBrakeFrame()
     if parkingBrakeColorFrame then return parkingBrakeColorFrame end
     
     local playerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -201,7 +209,8 @@ local function findParkingBrakeFrame()
     end
     
     if not targetScreenGui then
-        local errorMsg = "DisplayOrder " .. PARKING_BRAKE_DISPLAY_ORDER .. " ScreenGui not found"
+        local errorMsg = "DisplayOrder " .. PARKING_BRAKE_DISPLAY_ORDER .. " olan ScreenGui bulunamadı"
+        print("⚠️ " .. errorMsg)
         return nil
     end
     
@@ -214,23 +223,27 @@ local function findParkingBrakeFrame()
     end
     
     if not frameContainer then
-        local errorMsg = "No Frame found inside ScreenGui"
+        local errorMsg = "ScreenGui içinde Frame bulunamadı"
+        print("⚠️ " .. errorMsg)
         return nil
     end
     
     local parkingBrakeFrame = frameContainer:FindFirstChild("ParkingBrake")
     if not parkingBrakeFrame or not parkingBrakeFrame:IsA("Frame") then
-        local errorMsg = "ParkingBrake Frame not found"
+        local errorMsg = "ParkingBrake Frame bulunamadı"
+        print("⚠️ " .. errorMsg)
         return nil
     end
     
     local frame1 = parkingBrakeFrame:FindFirstChild("1")
     if not frame1 or not frame1:IsA("Frame") then
+        print("⚠️ ParkingBrake içinde '1' adında Frame bulunamadı")
         return nil
     end
     
     local frame2 = frame1:FindFirstChild("2")
     if not frame2 or not frame2:IsA("Frame") then
+        print("⚠️ Frame '1' içinde '2' adında Frame bulunamadı")
         return nil
     end
     
@@ -238,6 +251,7 @@ local function findParkingBrakeFrame()
     
     local framePath = "ScreenGui[DisplayOrder=" .. PARKING_BRAKE_DISPLAY_ORDER .. "] -> Frame -> ParkingBrake -> 1 -> 2"
     
+    print("✅ ParkingBrake color frame bulundu ve save edildi! (Yol: " .. framePath .. ")")
     return parkingBrakeColorFrame
 end
 
@@ -284,6 +298,7 @@ local function findEmergencyServer()
                 emergencyServerId = servers[math.random(1, #servers)]
                 emergencyServerPlaceId = placeId
                 emergencyServerLastUpdate = tick()
+                print("✅ Yeni yedek sunucu seçildi: " .. tostring(emergencyServerId))
                 return true
             end
         end
@@ -292,14 +307,15 @@ local function findEmergencyServer()
     return false
 end
 
+-- Otomatik sunucu bulma servisi
 task.spawn(function()
     while true do
         local success, result = pcall(findEmergencyServer)
         if success and result then
-
+            -- Bir sunucu bulunduysa 60 saniye boyunca onu elimizde tutuyoruz
             task.wait(60)
         else
-
+            -- Bulunamazsa 5 saniye sonra tekrar dene
             task.wait(5)
         end
     end
@@ -310,13 +326,15 @@ local function emergencyServerHop()
     hasTriggeredHop = true
     
     local TeleportService = game:GetService("TeleportService")
-
+    
+    -- Eğer sunucu henüz bulunamadıysa anlık bir arama yap
     if not emergencyServerId then
+        print("🔍 Hop istendi ancak kayıtlı sunucu yok, taranıyor...")
         findEmergencyServer()
     end
     
     if emergencyServerId then
-        )
+        print("🚀 TELEPORT BAŞLATILIYOR! Sunucu: " .. tostring(emergencyServerId))
         
         pcall(function()
             if queue_on_teleport then
@@ -329,14 +347,16 @@ local function emergencyServerHop()
         end)
         
         if not success then
-            )
+            warn("❌ Teleport hatası: " .. tostring(err))
             hasTriggeredHop = false 
         end
     else
-        no server found matching criteria, cannot hop!")
+        print("❌ HATA: Uygun kriterlerde (5-30 oyuncu) sunucu bulunamadığı için geçiş yapılamadı!")
         hasTriggeredHop = false
     end
 end
+
+print("✅ Kick algılama sistemi hazır - P tuşu simülasyonu ve renk kontrolü frameTween esnasında çalışacak")
 
 local LocationCoordinates = {
     Bank = CFrame.new(-1366.52893, 3.77958393, 3018.23291, 0.999665797, 0.02563053, -0.00337082823, -0.0256738216, 0.999579251, -0.0134970928, 0.00302347238, 0.0135791246, 0.999903202),
@@ -365,6 +385,10 @@ local locktime = 200
 local dedectdistance = 55
 local healthdecrease = 10
 local minMoneyToSell = 100000
+
+
+
+
 
 function sellAllItems()
     local closestDealer = findNearestDealer()
@@ -412,14 +436,14 @@ local RemoteEvents = {
     GetPhone = game:GetService("ReplicatedStorage"):WaitForChild("6Dg"):WaitForChild("4766e04c-1184-445b-9efa-4d04c1bae5a0"),
     ClosePhone = game:GetService("ReplicatedStorage"):WaitForChild("6Dg"):WaitForChild("3cf94f57-d9ef-420d-9595-398856c22830"),
 }
-local MONEY_COLLECT_CODE = "Az0"
-local GOLD_COLLECT_CODE = "5q0"
-local CASH_COLLECT_CODE = "51q"
-local VENDING_COLLECT_CODE = "zEb"
-local BOMB_GUI_DISPLAY_ORDER = nil
+local MONEY_COLLECT_CODE = "Az0" -- bank,club,container
+local GOLD_COLLECT_CODE = "5q0" -- bank,club,jewellery
+local CASH_COLLECT_CODE = "51q" --gas stations
+local VENDING_COLLECT_CODE = "zEb" --vending machine
+local BOMB_GUI_DISPLAY_ORDER = nil -- Başlangıçta boş
 
 local function findBombGuiDisplayOrder()
-
+    -- Eğer zaten bulduysak tekrar arama yapma, mevcut değeri döndür
     if BOMB_GUI_DISPLAY_ORDER then return BOMB_GUI_DISPLAY_ORDER end
     
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -427,7 +451,7 @@ local function findBombGuiDisplayOrder()
 
     for _, descendant in ipairs(playerGui:GetDescendants()) do
         if descendant:IsA("ImageLabel") and descendant.Image == "rbxassetid://81957721494606" then
-
+            -- 5 katman yukarı çıkış (Label -> Frame -> ... -> ScreenGui)
             local p1 = descendant.Parent
             local p2 = p1 and p1.Parent
             local p3 = p2 and p2.Parent
@@ -435,8 +459,8 @@ local function findBombGuiDisplayOrder()
             local p5 = p4 and p4.Parent
             
             if p5 and p5:IsA("ScreenGui") then
-                BOMB_GUI_DISPLAY_ORDER = p5.DisplayOrder
-                )
+                BOMB_GUI_DISPLAY_ORDER = p5.DisplayOrder -- Değeri kalıcı olarak kaydet
+                print("✅ Bomba GUI Dinamik Olarak Bulundu! DisplayOrder: " .. tostring(BOMB_GUI_DISPLAY_ORDER))
                 return BOMB_GUI_DISPLAY_ORDER
             end
         end
@@ -444,7 +468,8 @@ local function findBombGuiDisplayOrder()
     return nil
 end
 
-local LOCK_SCREEN_DISPLAY_ORDER = 37
+local LOCK_SCREEN_DISPLAY_ORDER = 37 -- Kilit ekranı sabit kalabilir
+
 
 local function bypassLockScreen()
     local playerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -452,6 +477,8 @@ local function bypassLockScreen()
     local searchDuration = 15
     local targetButton = nil
     local checkCount = 0
+    
+    print("🔍 Lock screen bypass başlatıldı, buton aranıyor...")
     
     while (tick() - searchStartTime) < searchDuration and not targetButton do
         checkCount = checkCount + 1
@@ -476,7 +503,7 @@ local function bypassLockScreen()
                     end
                     if hasFrame then
                         targetScreenGui = child
-                        .. ")")
+                        print("🔍 Alternatif ScreenGui bulundu (DisplayOrder: " .. tostring(child.DisplayOrder) .. ")")
                         break
                     end
                 end
@@ -510,16 +537,16 @@ local function bypassLockScreen()
                 
                 if #allButtons > 0 then
                     targetButton = allButtons[#allButtons]
-                    .. ")")
+                    print("✅ Lock screen bypass: Buton bulundu! (Kontrol #" .. checkCount .. ", Tip: " .. targetButton.ClassName .. ", Visible: " .. tostring(targetButton.Visible) .. ")")
                     break
                 else
                     if checkCount % 10 == 0 then
-                        )
+                        print("⚠️ Frame bulundu ama buton bulunamadı. Frame child sayısı: " .. #targetFrame:GetChildren())
                     end
                 end
             else
                 if checkCount % 10 == 0 then
-                    )
+                    print("⚠️ ScreenGui bulundu ama Frame bulunamadı. ScreenGui child sayısı: " .. #targetScreenGui:GetChildren())
                 end
             end
         else
@@ -530,20 +557,21 @@ local function bypassLockScreen()
                         screenGuiCount = screenGuiCount + 1
                     end
                 end
-                end
+                print("⚠️ DisplayOrder " .. LOCK_SCREEN_DISPLAY_ORDER .. " ile ScreenGui bulunamadı. Toplam ScreenGui sayısı: " .. screenGuiCount)
+            end
         end
         
         if not targetButton then
             local elapsed = tick() - searchStartTime
             if checkCount % 10 == 0 then
-                .. "s / " .. searchDuration .. "s, Kontrol #" .. checkCount .. ")")
+                print("⏳ Lock screen bypass: Buton aranıyor... (" .. string.format("%.1f", elapsed) .. "s / " .. searchDuration .. "s, Kontrol #" .. checkCount .. ")")
             end
             task.wait(0.5)
         end
     end
     
     if not targetButton then
-        ")
+        print("⚠️ Lock screen bypass: Buton 15 saniye içinde bulunamadı (" .. checkCount .. " kontrol yapıldı)")
         return
     end
     
@@ -610,6 +638,7 @@ local function bypassLockScreen()
     for _, p in ipairs(points) do if p.Drawing then p.Drawing:Destroy() end end
 end
 
+
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -619,10 +648,13 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
+-- Kod yüklendikten sonra arka planda bypassLockScreen'i başlat, ana akışı bloklama
 task.spawn(function()
-    task.wait(1)
+    task.wait(1) -- Kısa bir bekleyiş yeterli
     bypassLockScreen()
 end)
+
+
 
 local healthTracking = {
     lastHealth = 100,
@@ -637,8 +669,12 @@ function checkHealthAndReset()
     if character and character:FindFirstChildOfClass("Humanoid") and not isRespawning then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if humanoid.Health < 25 then
+            print("⚠️ Sağlık 25'in altında! Karakter resetleniyor...")
+            
             isRespawning = true
             isHeaderRunning = false
+            print("🛑 Header fonksiyonu durduruldu, mevcut işlemler iptal ediliyor...")
+            
             humanoid.Jump = true
             humanoid.Health = 0
             humanoid:BreakJoints()
@@ -646,6 +682,7 @@ function checkHealthAndReset()
             local connection
             connection = LocalPlayer.CharacterAdded:Connect(function()
                 task.wait(3)
+                print("✅ Karakter yeniden doğdu, header fonksiyonu tekrar başlatılıyor...")
                 isRespawning = false
                 connection:Disconnect()
                 task.spawn(header)
@@ -657,6 +694,9 @@ function checkHealthAndReset()
     return false
 end
 
+
+
+
 local CurrentBombs = 0
 local BombCheckInterval = 0.5
 
@@ -665,9 +705,10 @@ local function getBombCount()
     local screenGui = nil
     local bombCount = 0
 
+    -- Eğer DisplayOrder henüz bulunmadıysa, bulana kadar getBombCount içinde denemeye devam et
     if not BOMB_GUI_DISPLAY_ORDER then
         BOMB_GUI_DISPLAY_ORDER = findBombGuiDisplayOrder()
-        if not BOMB_GUI_DISPLAY_ORDER then return 0 end
+        if not BOMB_GUI_DISPLAY_ORDER then return 0 end -- Hala bulunamadıysa 0 döndür
     end
 
     for _, gui in ipairs(playerGui:GetChildren()) do
@@ -715,6 +756,8 @@ end
 
 startBombChecker()
 
+
+
 function getMoneyAmount()
     local success, result = pcall(function()
         local playerGui = game:GetService("Players").LocalPlayer.PlayerGui
@@ -742,12 +785,13 @@ function getMoneyAmount()
                         local greatGrandParent = grandParent.Parent
                         if greatGrandParent and greatGrandParent.Name == "3" and greatGrandParent:IsA("ImageLabel") then
                             local moneyText = descendant.Text
-
-                            local cleaned = moneyText:gsub("", ""):gsub("%s+", "")
+                            
+                            -- Handle dot separator logic: focus on numbers before dot and treat as 'k'
+                            local cleaned = moneyText:gsub("€", ""):gsub("%s+", "")
                             local numericPart = cleaned:match("([^%.]+)")
                             local value = (tonumber(numericPart) or 0) * 1000
                             
-                            :", value)
+                            print("📱 Para okundu (Nokta öncesi * 1k):", value)
                             return value or 0
                         end
                     end
@@ -759,46 +803,53 @@ function getMoneyAmount()
     end)
     
     if not success then
-        )
+        warn("Para miktarı kontrolünde hata oluştu: " .. tostring(result))
         return 0
     end
     
     return result
 end
 
+
+
 function hopServer()
+    print("🌐 [Server Hopper] Başlatıldı...")
+    
     if _G.saveMoneyBeforeRejoin then
         runSaveMoneySequence()
     end
 
+    -- Eğer arka plan servisi henüz bir sunucu bulamadıysa hızlıca bir tane bulmaya çalış
     if not emergencyServerId then
         findEmergencyServer()
     end
     
     if emergencyServerId then
-        )
+        print("🎯 Taze ve uygun sunucu bulundu: " .. tostring(emergencyServerId))
         
         local TeleportService = game:GetService("TeleportService")
         local placeId = game.PlaceId
-
+        
+        -- Rejoin scriptini teleport sırasında kuyruğa ekle
         pcall(function()
             if queue_on_teleport then
                 queue_on_teleport(getgenv().RejoinScript)
             end
         end)
         
+        print("🚀 Işınlanma başlatılıyor...")
         local success, err = pcall(function()
             TeleportService:TeleportToPlaceInstance(placeId, emergencyServerId, LocalPlayer)
         end)
         
         if not success then
-            )
-
+            warn("❌ Işınlanma hatası: " .. tostring(err))
+            -- Hata durumunda ID'yi temizle ki bir sonraki sefer yeni bir tane arasın
             emergencyServerId = nil
         end
     else
-        no fresh server found! Trying alternative method...")
-
+        print("⚠️ HATA: Uygun kriterlerde (findEmergencyServer) taze sunucu bulunamadı! Alternatif metod deneniyor...")
+        -- Alternatif: Rasgele sunucu bul
         local success, response = pcall(function()
             return game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100")
         end)
@@ -818,7 +869,8 @@ function hopServer()
                 end
             end
         end
-        end
+        print("❌ Hiçbir sunucu bulunamadı!")
+    end
 end
 
 function detectPolice(robberyType)
@@ -835,7 +887,7 @@ function detectPolice(robberyType)
     local currentHealth = humanoid.Health
     
     if currentHealth <= 25 and (_G.rejoinWhenDead == nil or _G.rejoinWhenDead == true) then
-        .. " (25 or below). Server hopping...")
+        print("⚠️ Health is " .. math.floor(currentHealth) .. " (25 or below). Server hopping...")
         game:GetService("StarterGui"):SetCore("SendNotification",{
             Title = "Low Health",
             Text = "Server hopping..."
@@ -852,7 +904,7 @@ function detectPolice(robberyType)
     local healthLoss = healthTracking.lastHealth - currentHealth
     
     if healthLoss >= healthdecrease then
-        .. ". Stopping robbery.")
+        print("⚠️ Significant health decrease detected! Health loss: " .. math.floor(healthLoss) .. ". Stopping robbery.")
         game:GetService("StarterGui"):SetCore("SendNotification",{
             Title = "Health Decreased",
             Text = "Passing the place"
@@ -862,14 +914,19 @@ function detectPolice(robberyType)
         healthTracking.damagedLocation = robberyType
         
         if robberyType == "Club" or robberyType == "Bank" or robberyType == "Gasngo" or robberyType == "Jewellery" then
+            print("Returning to gas region...")
             frameTween(gasregion)
         elseif robberyType == "Containerone" or robberyType == "Containertwo" or robberyType == "Containerthree" or robberyType == "Containerfour" then
+            print("Returning to container region...")
             frameTween(contaregion)
         elseif robberyType == "Ares" or robberyType == "Tool" then
+            print("Returning to ares region...")
             frameTween(aresregion)
         elseif robberyType == "Farm" or robberyType == "Clothing" then
+            print("Returning directly to osso region...")
             frameTween(ossoregionDirect)
         elseif robberyType == "Oso" then
+            print("Returning directly to osso region...")
             frameTween(ossoregionDirect)
         end
         
@@ -886,7 +943,7 @@ function detectPolice(robberyType)
                 if playerCharacter and playerCharacter:FindFirstChild("HumanoidRootPart") then
                     local distance = (playerCharacter.HumanoidRootPart.Position - rootPart.Position).Magnitude
                     if distance <= dedectdistance then
-                        .. " studs. Stopping robbery.")
+                        print("🚨 Police detected nearby! Distance: " .. math.floor(distance) .. " studs. Stopping robbery.")
                         game:GetService("StarterGui"):SetCore("SendNotification",{
                             Title = "Police Dedected",
                             Text = "Passing the place"
@@ -894,19 +951,24 @@ function detectPolice(robberyType)
                         lockRobbery(robberyType)
                         
                         if robberyType == "Club" or robberyType == "Bank" or robberyType == "Gasngo" or robberyType == "Jewellery" then
+                            print("Returning to gas region...")
                             frameTween(gasregion)
 
                         elseif robberyType=="Containerone"
                             or robberyType=="Containertwo"
                             or robberyType=="Containerthree"
                             or robberyType=="Containerfour" then
+                            print("Returning to container region...")
                             frameTween(contaregion)
 
                         elseif robberyType == "Ares" or robberyType == "Tool" then
+                            print("Returning to ares region...")
                             frameTween(aresregion)
                         elseif robberyType == "Farm" or robberyType == "Clothing" then
+                            print("Returning directly to osso region...")
                             frameTween(ossoregionDirect)
                         elseif robberyType == "Oso" then
+                            print("Oso soygunu sırasında polis algılandı, özel dönüş rotası kullanılıyor...")
                             returnFromOso()
                         end
                         
@@ -924,66 +986,99 @@ function lockRobbery(robberyType)
     if robberyType == "Club" then
         clublock = true
         clubLockTime = os.time()
-        elseif robberyType == "Bank" then
+        print("Club robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Bank" then
         banklock = true
         bankLockTime = os.time()
-        elseif robberyType == "Jewellery" then
+        print("Bank robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Jewellery" then
         jewellerylock = true
         jewelleryLockTime = os.time()
-        elseif robberyType == "Gasngo" then
+        print("Jewellery robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Gasngo" then
         gasngolock = true
         gasngoLockTime = os.time()
-        elseif robberyType == "Containerone" then
+        print("Gas-n-Go robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Containerone" then
         containeronelock = true
         containeroneLockTime = os.time()
-        elseif robberyType == "Containertwo" then
+        print("Containerone robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Containertwo" then
         containertwolock = true
         containertwoLockTime = os.time()
-        elseif robberyType == "Containerthree" then
+        print("Containertwo robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Containerthree" then
         containerthreelock = true
         containerthreeLockTime = os.time()
-        elseif robberyType == "Containerfour" then
+        print("Containerthree robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Containerfour" then
         containerfourlock = true
         containerfourLockTime = os.time()
-        elseif robberyType == "Tool" then
+        print("Containerfour robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Tool" then
         toollock = true
         toolLockTime = os.time()
-        elseif robberyType == "Clothing" then
+        print("Tool Shop robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Clothing" then
         clothinglock = true
         clothingLockTime = os.time()
-        elseif robberyType == "Ares" then
+        print("Clothing Store robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Ares" then
         areslock = true
         aresLockTime = os.time()
-        elseif robberyType == "Farm" then
+        print("Ares robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Farm" then
         farmlock = true
         farmLockTime = os.time()
-        elseif robberyType == "Oso" then
+        print("Farm robbery locked for " .. locktime .. " seconds.")
+    elseif robberyType == "Oso" then
         osolock = true
         osoLockTime = os.time()
-        end
+        print("Oso robbery locked for " .. locktime .. " seconds.")
+    end
 end
+
+
+
+
+
+
+
+
+
+
+
+
 
 function header()
     if isRespawning then
+        print("⚠️ Respawn işlemi devam ediyor, header fonksiyonu başlatılmadı.")
         return
     end
     
     isHeaderRunning = true
+    print("🚀 Header fonksiyonu başlatıldı...")
+    
+    print("Başlangıçta bomba sayısı ve dealer kontrolü yapılıyor...")
+    
     local dealer = findNearestDealer()
     
     if not dealer then
+        print("⚠️ Başlangıç konumunda dealer bulunamadı, Gas bölgesine gidiliyor...")
         frameTween(gasregion)
         task.wait(0.5)
         
         dealer = findNearestDealer()
         
         if not dealer then
+            print("⚠️ Gas bölgesinde de dealer bulunamadı, Container bölgesine gidiliyor...")
             frameTween(contaregion)
             task.wait(0.5)
             
             dealer = findNearestDealer()
             
             if not dealer then
+                print("⚠️ Hiçbir bölgede dealer bulunamadı, server hop yapılıyor...")
                 hopServer()
                 return
             end
@@ -991,12 +1086,12 @@ function header()
     end
     
     if CurrentBombs < 3 then
-        , dealer'a gidiliyor...")
+        print("Bomba sayısı yetersiz (" .. CurrentBombs .. "/3), dealer'a gidiliyor...")
         frameTween(dealer.Head.CFrame)
         buyBombAndSell(3 - CurrentBombs)
         task.wait(0.5)
     else
-        , starting robbery loop...")
+        print("Başlangıçta bomba sayısı yeterli (" .. CurrentBombs .. "/3), robbery döngüsü başlatılıyor...")
     end
     
     startRobberyCycle()
@@ -1041,6 +1136,7 @@ function findNearestDealer()
     return closestDealer
 end
 
+-- 🟢 STABLE DRAWING CIRCLE (User's Tracker)
 local activeCircle, renderConn
 local function drawCircle(x, y, duration)
     if activeCircle then activeCircle:Remove() activeCircle = nil end
@@ -1065,12 +1161,14 @@ end
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
 function checkCurrentMoneyViaPhone()
+    print("📱 [User Logic] Phone money check starting...")
     RemoteEvents.GetPhone:FireServer("Phone")
     task.wait(1)
 
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local root, home, criminalBtn
 
+    -- User'ın özel ID'li yolunu deniyoruz
     local successPath = pcall(function()
         root = pg["FDDA4801-95D9-493D-8508-33F7B0C3CE1E"]["FDDA4801-95D9-493D-8508-33F7B0C3CE1E"]["3"]["4"]
         home = root:FindFirstChild("Home")
@@ -1078,7 +1176,8 @@ function checkCurrentMoneyViaPhone()
     end)
 
     if not successPath or not root or not criminalBtn then
-
+        warn("📱 Phone UI path matching user ID failed, falling back to DisplayOrder search...")
+        -- Fallback: DisplayOrder tabanlı arama (ID değişirse diye)
         for _, gui in ipairs(pg:GetChildren()) do
             if gui:IsA("ScreenGui") and gui.DisplayOrder == 29 then
                 pcall(function()
@@ -1093,6 +1192,7 @@ function checkCurrentMoneyViaPhone()
     end
 
     if not criminalBtn then
+        warn("❌ Phone elements not found!")
         RemoteEvents.ClosePhone:FireServer()
         return 0
     end
@@ -1101,12 +1201,13 @@ function checkCurrentMoneyViaPhone()
     local success = false
     local maxTries = 40 
 
-    ")
+    print("▶️ Iterative clicking started (2px offset per click)")
     
     for i = 1, maxTries do
         local checkHome = root:FindFirstChild("Home")
         if not checkHome or not checkHome.Visible then
             success = true
+            print("✅ Criminal tab opened successfully at try:", i)
             break
         end
 
@@ -1115,10 +1216,12 @@ function checkCurrentMoneyViaPhone()
         local x = pos.X + size.X / 2
         local y = pos.Y + size.Y / 2 + clickOffset
 
+        -- Debug için daire çiz (Sadece true ise)
         if _G.criminalappdrawing then
             drawCircle(x, y, 0.5)
         end
 
+        -- Tıkla
         VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
         task.wait(0.05)
         VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
@@ -1128,25 +1231,33 @@ function checkCurrentMoneyViaPhone()
     end
 
     if not success then
+        warn("❌ Failed to open Criminal tab after multiple tries")
         RemoteEvents.ClosePhone:FireServer()
         return 0
     end
 
+    -- Menü açıldı, şimdi parayı oku (root/4/3 yolu)
     local moneyLabel = root:WaitForChild("4"):WaitForChild("3")
-
+    
+    -- Metnin yüklenmesini bekle (--- veya boş olmamalı) 
+    -- UI bazen geç güncelleniyor, 3 saniye boyunca geçerli veri arıyoruz
     local rawText = moneyLabel.Text
     local startTime = tick()
-    while (rawText == "
+    while (rawText == "---" or rawText == "" or rawText == "0€") and (tick() - startTime < 3) do
         task.wait(0.2)
         rawText = moneyLabel.Text
     end
-
-    if rawText == "
+    
+    -- Hala geçersizse bir kez daha bekle ve oku
+    if rawText == "---" or rawText == "" then
         task.wait(0.5)
         rawText = moneyLabel.Text
     end
+    
+    print("📱 Raw money text:", rawText)
 
-    local cleaned = rawText:gsub("", ""):gsub("%s+", "")
+    -- Para temizleme mantığı
+    local cleaned = rawText:gsub("€", ""):gsub("%s+", "")
     local hasK = rawText:find("k")
     cleaned = cleaned:gsub("k", "")
     
@@ -1157,6 +1268,7 @@ function checkCurrentMoneyViaPhone()
         amount = tonumber(cleaned:gsub("%.", "")) or 0
     end
 
+    print("💰 Extracted amount:", amount)
     RemoteEvents.ClosePhone:FireServer()
     return amount
 end
@@ -1182,33 +1294,36 @@ end
 function runSaveMoneySequence()
     if not _G.saveMoneyBeforeRejoin then return end
     
+    print("💰 SaveMoney Sequence Started...")
     local currentMoney = checkCurrentMoneyViaPhone()
     local threshold = _G.moneyToSaveValue or 50000
     
-    .. " | Target (Slider): " .. tostring(threshold))
+    print("💰 [Debug] Mevcut Para: " .. tostring(currentMoney) .. " | Hedef (Slider): " .. tostring(threshold))
     
     if currentMoney >= threshold then
-        >= Threshold (" .. threshold .. "). Starting sell routine...")
+        print("💰 Money (" .. currentMoney .. ") >= Threshold (" .. threshold .. "). Starting sell routine...")
         
         local dealer = findNearestDealer()
         local dealerCF = dealer and dealer.Head.CFrame or _G.lastKnownDealerCFrame
         
         if dealerCF then
-             ...")
+             print("💰 Selling items at Dealer (Round 1)...")
              frameTween(dealerCF + Vector3.new(0, -2, 0))
              task.wait(0.5)
-             buyBombAndSell(0)
+             buyBombAndSell(0) -- First attempt
              task.wait(1)
              
-             ...")
+             print("💰 Selling items at Dealer (Round 2 - Safety)...")
              frameTween(dealerCF + Vector3.new(0, -2, 0))
              task.wait(0.5)
-             buyBombAndSell(0)
+             buyBombAndSell(0) -- Second attempt for reliability
              task.wait(1)
         end
         
         local diamondCount = findDiamondCount()
         if diamondCount > 0 then
+            print("💎 " .. diamondCount .. " Diamonds found! Going to Smuggler...")
+            
             local smugglerFolder = workspace:FindFirstChild("Smugglers")
             local nearestSmuggler = nil
             local minShoreDis = math.huge
@@ -1233,6 +1348,7 @@ function runSaveMoneySequence()
             end
             
             if isOption1 then
+                print("💎 Smuggler Option 1 detected.")
                 frameTween(CFrame.new(738.794312, 3.52832198, -1504.39526, -0.999932051, -0.000173144057, 0.0116532659, -0.000172138112, 1, 8.73264944e-05, -0.0116532808, 8.53145903e-05, -0.999932051))
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.Sit = false end
                 task.wait(0.5)
@@ -1242,13 +1358,15 @@ function runSaveMoneySequence()
                 RemoteEvents.SellItem:FireServer("Diamond", "Smuggler")
                 task.wait(1)
                 
-                .")
+                print("💎 Sale done. Going to safe spot (Option 1).")
                 frameTween(CFrame.new(717.392944, 3.03320456, -1621.90698, 0.996323705, -0.00225340808, 0.0856386647, 0.00223121, 0.999997437, 0.000354919262, -0.0856392458, -0.000162536657, 0.996326208))
                 plrTween(CFrame.new(704.428711, 57.038311, -1625.33545, -0.0239031445, -5.31348299e-08, 0.999714255, -4.20952233e-08, 1, 5.21435233e-08, -0.999714255, -4.08367988e-08, -0.0239031445))
             else
+                print("💎 Smuggler Option 2 path starting.")
                 frameTween(CFrame.new(1022.30725, 3.29838538, 1981.34595, -0.999049842, -6.31316216e-05, 0.0435817763, -6.47525158e-05, 1, -3.57803183e-05, -0.0435817726, -3.85683525e-05, -0.999049842))
                 task.wait(0.5)
-
+                
+                 -- Simplified Smuggler 2 logic for brevity/consistency
                 local sA, sB = nil, nil
                 if smugglerFolder then
                     for _, s in ipairs(smugglerFolder:GetChildren()) do
@@ -1259,6 +1377,7 @@ function runSaveMoneySequence()
                 end
                 
                 if sA then
+                    print("💎 Smuggler 2.1 detected.")
                     frameTween(CFrame.new(1068.81897, 3.68664122, 2360.88403, -0.999967217, 0.00177234877, -0.00789792184, 0.00177910307, 0.999998033, -0.000848251279, 0.00789640285, -0.000862274668, -0.999968469))
                     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.Sit = false end
                     task.wait(0.5)
@@ -1266,6 +1385,7 @@ function runSaveMoneySequence()
                     plrTween(CFrame.new(1164.49548, 28.6692219, 2299.34814, 0.746554852, -9.9519994e-08, -0.665323853, 9.49999475e-08, 1, -4.29825597e-08, 0.665323853, -3.1116894e-08, 0.746554852))
                     plrTween(CFrame.new(1159.0835, 59.7837868, 2245.94263, 0.999968708, -1.64257532e-08, 0.00790836383, 1.58278546e-08, 1, 7.56659801e-08, -0.00790836383, -7.55384448e-08, 0.999968708))
                 elseif sB then
+                    print("💎 Smuggler 2.2 detected.")
                     frameTween(CFrame.new(1061.09058, 3.38043857, 1857.00891, -0.994440079, -0.104499161, 0.0129944365, -0.104507692, 0.994524062, 2.29175257e-05, -0.0129256751, -0.00133522844, -0.99991554))
                     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.Sit = false end
                     task.wait(0.5)
@@ -1276,7 +1396,7 @@ function runSaveMoneySequence()
                 RemoteEvents.SellItem:FireServer("Diamond", "Smuggler")
                 task.wait(1)
                 
-                .")
+                print("💎 Sale done. Going to safe spot (Option 2).")
                 frameTween(CFrame.new(830.270081, 3.30110955, 1944.85144, 0.999892354, -0.0010065136, -0.0146365445, 0.0010150692, 0.999999344, 0.000577118248, 0.0146359541, -0.000591913238, 0.999892712))
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.Sit = false end
                 task.wait(0.5)
@@ -1284,7 +1404,7 @@ function runSaveMoneySequence()
                 plrTween(CFrame.new(790.075378, 36.3572502, 1923.53101, 0.600118101, 2.04306705e-08, -0.799911439, -5.7553442e-09, 1, 2.12233306e-08, 0.799911439, -8.13273893e-09, 0.600118101))
             end
         else
-            directly.")
+            print("💎 No Diamonds found. Going to safe spot (Option 1 Safe Spot) directly.")
             frameTween(CFrame.new(717.392944, 3.03320456, -1621.90698, 0.996323705, -0.00225340808, 0.0856386647, 0.00223121, 0.999997437, 0.000354919262, -0.0856392458, -0.000162536657, 0.996326208))
             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.Sit = false end
             task.wait(0.5)
@@ -1293,7 +1413,7 @@ function runSaveMoneySequence()
         
         local totalSeconds = 10 * 60
         local sg = Instance.new("ScreenGui")
-        sg.Name = "VantaCountdown"
+        sg.Name = "VantaCoontdown"
         pcall(function() sg.Parent = game:GetService("CoreGui") end)
         if not sg.Parent then sg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
         
@@ -1316,30 +1436,36 @@ function runSaveMoneySequence()
         for i = totalSeconds, 1, -1 do
             local mins = math.floor(i / 60)
             local secs = i % 60
-            label.Text = string.format(" Rejoining in: %02d:%02d", mins, secs)
+            label.Text = string.format("⏳ Rejoining in: %02d:%02d", mins, secs)
             task.wait(1)
         end
         sg:Destroy()
         
-        end
+        print("✅ 10 dakikalık bekleme süresi doldu. Sunucu değiştiriliyor...")
+    end
     return true
 end
+
+
 
 function startRobberyCycle()
     isHeaderRunning = true
     
     while isHeaderRunning do
         if isRespawning then
+            print("⚠️ Respawn işlemi başladı, robbery döngüsü duraklatılıyor...")
             break
         end
         
         updateLocks()
 
+
         
         local gasRegionDone = false
         
         if CurrentBombs < 4 then
-            , heading to nearest dealer...")
+            print("Gas bölgesine girmeden önce bomba sayısı kontrol ediliyor...")
+            print("Bomba sayısı yetersiz (" .. CurrentBombs .. "/4), en yakın dealera gidiliyor...")
             local dealer = findNearestDealer()
             if dealer then
                 frameTween(dealer.Head.CFrame)
@@ -1348,6 +1474,7 @@ function startRobberyCycle()
         end
         
         while not gasRegionDone do
+            print("Gas bölgesi kontrol ediliyor...")
             if _G.vendingPriority == "Before Main Robberys" then
                 handleVendingRobbery(gasregion, contaregion)
             end
@@ -1370,13 +1497,15 @@ function startRobberyCycle()
                 if _G.vendingPriority == "After Main Robberys" then
                     handleVendingRobbery(gasregion, contaregion)
                 end
-                end
+                print("Gas bölgesinde soyulacak yer kalmadı, container bölgesine geçiliyor...")
+            end
         end
         
         local containerRegionDone = false
         
         if CurrentBombs < 4 then
-            , heading to nearest dealer...")
+            print("Container bölgesine girmeden önce bomba sayısı kontrol ediliyor...")
+            print("Bomba sayısı yetersiz (" .. CurrentBombs .. "/4), en yakın dealera gidiliyor...")
             local dealer = findNearestDealer()
             if dealer then
                 frameTween(dealer.Head.CFrame)
@@ -1385,6 +1514,8 @@ function startRobberyCycle()
         end
         
         while not containerRegionDone do
+            print("Container bölgesi kontrol ediliyor...")
+            
             frameTween(contaregion)
             local containerone, containertwo, containerthree, containerfour = cconta()
             
@@ -1398,15 +1529,19 @@ function startRobberyCycle()
                 ContainerfourRob()
             else
                 containerRegionDone = true
-                end
+                print("Container bölgesinde soyulacak yer kalmadı, area bölgesine geçiliyor...")
+            end
         end
         
         local aresRegionDone = false
-
+        
+        print("Ares bölgesine gidiliyor, rota takip ediliyor...")
+        -- Intermediate waypoints before Ares (run only once when entering from Container)
         frameTween(CFrame.new(858.241272, 3.12237835, 1773.55664, 0.125734136, 0.00639350479, 0.992043376, -0.0092076268, 0.999943674, -0.00527742226, -0.992021263, -0.00847081374, 0.125785917))
         frameTween(CFrame.new(199.099487, 3.63040662, 1687.92432, 0.00216283719, 0.0136310551, 0.999904752, 0.0196070857, 0.999714315, -0.0136708701, -0.99980545, 0.019634787, 0.00189495401))
         
         while not aresRegionDone do
+            print("Ares bölgesi kontrol ediliyor...")
             frameTween(aresregion)
 
             local ares, tool = cares()
@@ -1422,13 +1557,15 @@ function startRobberyCycle()
                 if _G.ossoVisitedOnce then
                     _G.lockHeightTo7 = true
                 end
-                end
+                print("Ares bölgesinde soyulacak yer kalmadı, osso bölgesine geçiliyor...")
+            end
         end
         
         local ossoRegionDone = false
         
         while not ossoRegionDone do
             
+            print("Osso bölgesi kontrol ediliyor...")
             fixedY = 2
             
             local currentRegion = "unknown"
@@ -1452,6 +1589,7 @@ function startRobberyCycle()
                 end
             end
             
+            print("Osso bölgesine direkt gidiliyor...")
             frameTween(ossoregionDirect)
             
             fixedY = -1.9
@@ -1469,11 +1607,34 @@ function startRobberyCycle()
 
             else
                 ossoRegionDone = true
-                end
+                print("Osso bölgesinde soyulacak yer kalmadı, yeniden gas bölgesine dönülüyor...")
+            end
         end
         
-        hopServer()
+        -- 1. Zu deiner Parkposition fliegen/fahren
+        print("everything done, flying to parking spot for server hop...")
+        frameTween(CFrame.new(-884.2687377929688, 5.422751426696777, 3100.90283203125))
 
+        -- 2. Die gewünschten 500 Sekunden warten
+        print("waiting for 500 seconds before server hop...")
+        task.wait(500)
+
+        local queue = syn and syn.queue_on_teleport or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+        
+        if queue then
+            local payload = [[
+                repeat task.wait() until game:IsLoaded()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/fluxgitscripts/wdsatwdsa/refs/heads/main/.lua"))()
+            ]]
+            queue(payload)
+            print("Payload for rejoin has been added to the queue.")
+        else
+            warn("your executor does not support queue_on_teleport, the script may not work correctly after server hop!")
+        end
+
+        -- 4. Jetzt erst den Server wechseln
+        print("Server hop...")
+        hopServer()
     end
 end
 
@@ -1501,6 +1662,7 @@ end
 
 function checkContainerRegion()
     if CurrentBombs < 4 then
+        print("Need more bombs for container robberies.")
         return false
     end
 
@@ -1528,6 +1690,7 @@ function checkContainerRegion()
 
 return false
 end
+
 
 function checkAresRegion()
     frameTween(aresregion)
@@ -1565,6 +1728,9 @@ function checkOssoRegion()
     return false
 end
 
+
+
+
 function cosso()
     updateLocks()
 
@@ -1585,6 +1751,7 @@ if success and farmObj then
 else
     farm = false
 end
+
 
     local success2, osoObj = pcall(function()
         return workspace.Robberies["Osso Fuel Station Robbery"]["Osso Fuel Station"].MoneyTray
@@ -1631,6 +1798,9 @@ end
     return farm, oso, clothing
 end
 
+
+
+
 function cares()
     updateLocks()
 
@@ -1651,10 +1821,13 @@ function cares()
     if success and aresObj and aresObj:IsA("BasePart") then
         if aresObj.CFrame == targetCFrame and not aresLocked then
             ares = true
-            else
-            end
-    else
+            print("✅ Ares soygunu mümkün")
+        else
+            print("❌ Ares soygunu mümkün değil - MoneyTray pozisyonu yanlış veya kilitli")
         end
+    else
+        print("❌ Ares soygunu mümkün değil - MoneyTray bulunamadı")
+    end
 
     local targetToolCFrame = CFrame.new(
         -756.375, 5.52618742, 628.139771,
@@ -1670,16 +1843,27 @@ function cares()
     if success2 and toolObj and toolObj:IsA("BasePart") then
         if toolObj.CFrame == targetToolCFrame then
             tool = true
-            else
-            end
-    else
+            print("✅ Tool soygunu mümkün")
+        else
+            print("❌ Tool soygunu mümkün değil - MoneyTray pozisyonu yanlış")
         end
+    else
+        print("❌ Tool soygunu mümkün değil - MoneyTray bulunamadı")
+    end
 
     if not _G.selectedRobberies["Ares Fuel"] then ares = false end
     if not _G.selectedRobberies["Tool Shop"] then tool = false end
 
     return ares, tool
 end
+
+
+
+
+
+
+
+
 
 function cconta()
     updateLocks()
@@ -1723,10 +1907,13 @@ function cconta()
 
             if part and part.Transparency==1 and not info.lock then
                 info.set()
-                else
-                end
-        else
+                print("✅ "..info.name.." soygunu mümkün")
+            else
+                print("❌ "..info.name.." soygunu mümkün değil - Barricade kapalı veya kilitli")
             end
+        else
+            print("❌ "..info.name.." soygunu mümkün değil - Model bulunamadı")
+        end
     end
 
     if not _G.selectedRobberies["Container 1"] then containerone = false end
@@ -1737,9 +1924,12 @@ function cconta()
     return containerone,containertwo,containerthree,containerfour
 end
 
+
+
 function cgas()
     updateLocks()
 
+    -- CLUB
     local expectedCFrame = CFrame.new(
         -1744.05078, 11.3275862, 3010.18188,
         -1, 0, 0,
@@ -1757,6 +1947,7 @@ function cgas()
         club = false
     end
 
+    -- BANK
     local success2, bankLight = pcall(function()
         return workspace.Robberies.BankRobbery.LightGreen.Light
     end)
@@ -1767,6 +1958,7 @@ function cgas()
         bank = false
     end
 
+    -- GAS N GO
     local success3, moneyTray = pcall(function()
         return workspace.Robberies["Gas-N-Go Fuel Station Robbery"]["Gas-N-Go Fuel Station"].MoneyTray
     end)
@@ -1778,6 +1970,7 @@ function cgas()
         gasngo = false
     end
 
+    -- JEWELLERY (Yeni sistem)
     jewellery = false
 
     local robberies = workspace:FindFirstChild("Robberies")
@@ -1799,6 +1992,7 @@ function cgas()
             local _, y, _ = doorPart.CFrame:ToEulerAnglesYXZ()
             local yDeg = math.deg(y) % 360
 
+            -- Kapı açık kabul edilen açı aralığı
             if math.abs(yDeg - 90) < 10 or math.abs(yDeg - 270) < 10 then
                 jewellery = true
             end
@@ -1813,8 +2007,11 @@ function cgas()
     return club, bank, gasngo, jewellery
 end
 
-function buyBombAndSell(count)
 
+
+
+function buyBombAndSell(count)
+    -- Negatif değerler tamamen geçersiz
     if count < 0 then return end
     
     local Players = game:GetService("Players")
@@ -1825,7 +2022,8 @@ function buyBombAndSell(count)
     local targetCF = closestDealer and closestDealer.Head.CFrame or _G.lastKnownDealerCFrame
     
     if not targetCF then return end
-
+    
+    -- Dealer'a git (satış için de gerekli)
     frameTween(targetCF + Vector3.new(0, -2, 0))
     
     if char and char:FindFirstChild("HumanoidRootPart") then
@@ -1838,17 +2036,20 @@ function buyBombAndSell(count)
             math.rad(orientation.Z)
         )
     end
-
+    
+    -- 🔥 SADECE count > 0 İSE BOMBA AL
     if count > 0 then
         local bombsNeeded = math.min(count, 4 - CurrentBombs)
         if bombsNeeded > 0 then
+            print("Tam olarak " .. bombsNeeded .. " adet bomba satın alınacak")
             for i = 1, bombsNeeded do
                 RemoteEvents.BuyItem:FireServer("Bomb", "Dealer")
                 task.wait(0.1)
             end
         end
     end
-
+    
+    -- 🟢 SATIŞ
     if _G.autoSellEnabled then
         local itemsToSell = {
             "Gold",
@@ -1861,7 +2062,8 @@ function buyBombAndSell(count)
             "Remote Control",
             "Jewelry"
         }
-
+        
+        -- İlk satış turu (Bomb hariç, veya count == 0 ise Bomb dahil)
         if count == 0 then
             table.insert(itemsToSell, "Bomb")
         end
@@ -1870,8 +2072,10 @@ function buyBombAndSell(count)
             RemoteEvents.SellItem:FireServer(item, "Dealer")
             task.wait(0.1)
         end
-
+        
+        -- 🔑 SADECE count == 0 İSE BOMBA EKSTRA 4 KERE SAT
         if count == 0 then
+            print("Bomba ekstra 4 kere daha satılacak")
             for bombSellCount = 1, 4 do
                 RemoteEvents.SellItem:FireServer("Bomb", "Dealer")
                 task.wait(0.3)
@@ -1880,7 +2084,14 @@ function buyBombAndSell(count)
     end
 end
 
+
+
+
+
+
+
 local function bombequip()
+    print("Bomba ekipmanı alınıyor...")
     local args = {
         [1] = "Bomb"
     }
@@ -1906,6 +2117,7 @@ local function getCharacter(player)
     return char
 end
 
+
 local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
@@ -1918,29 +2130,37 @@ local function throwbomb()
     local tool = character:FindFirstChild("Bomb")
     if not tool then return end
 
+    -- Q basılı tutulur
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
     task.wait(0.1)
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
 
+    -- Mouse tıklama (fırlatma)
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
     task.wait(0.1)
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
     task.wait(0.6)
 
+    -- Q tekrar bırakılır
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
     task.wait(0.1)
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
     task.wait(0.3)
 
+    --  EN SON: eldeki item bırakılır
     local hum = character:FindFirstChildOfClass("Humanoid")
     if hum then
         hum:UnequipTools()
     end
 end
 
+
+
 local function firebomb()
+    print("Bomba patlatılıyor...")
     RemoteEvents.FireBomb:FireServer()
 end
+
 
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
@@ -1950,7 +2170,7 @@ local player = Players.LocalPlayer
 
 function plrTween(targetCFrame)
     local char = player.Character or player.CharacterAdded:Wait()
-    if not char.PrimaryPart then return end
+    if not char.PrimaryPart then warn("Karakterin PrimaryPart'i yok.") return end
 
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if humanoid then humanoid:ChangeState(Enum.HumanoidStateType.Running) end
@@ -2023,7 +2243,7 @@ function frameTween(targetCFrame)
     local failedChecks = 0
     local maxFailedChecks = 3
     
-    addDebugLog(" frameTween STARTED - Tolerance reset", Color3.fromRGB(100, 200, 255))
+    addDebugLog("🚗 frameTween BAŞLADI - Tolerans sıfırlandı", Color3.fromRGB(100, 200, 255))
     updateTolerance(failedChecks, maxFailedChecks)
     
     local character = player.Character or player.CharacterAdded:Wait()
@@ -2036,15 +2256,15 @@ function frameTween(targetCFrame)
     end
 
     local vehicle = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(player.Name)
-    if not vehicle then return end
+    if not vehicle then warn("Araç bulunamadı.") return end
 
     local driveSeat = vehicle:FindFirstChild("DriveSeat")
-    if not driveSeat or not driveSeat:IsA("Seat") then return end
+    if not driveSeat or not driveSeat:IsA("Seat") then warn("DriveSeat bulunamadı.") return end
 
     if not vehicle.PrimaryPart then
         local body = vehicle:FindFirstChild("Body")
         local mass = body and body:FindFirstChild("Mass")
-        if mass then vehicle.PrimaryPart = mass else return end
+        if mass then vehicle.PrimaryPart = mass else warn("PrimaryPart ayarlanamadı.") return end
     end
 
     driveSeat:Sit(humanoid)
@@ -2115,15 +2335,16 @@ function frameTween(targetCFrame)
                 local shouldSkip = false
                 
                 if not parkingBrakeColorFrame or not parkingBrakeColorFrame.Parent then
-                    addDebugLog(" Frame lost, searching again...", Color3.fromRGB(255, 165, 0))
+                    addDebugLog("⚠️ Frame kayboldu, yeniden aranıyor...", Color3.fromRGB(255, 165, 0))
                     findParkingBrakeFrame()
                     if not parkingBrakeColorFrame or not parkingBrakeColorFrame.Parent then
-                        addDebugLog(" Frame not found! Increasing tolerance...", Color3.fromRGB(255, 100, 100))
+                        addDebugLog("❌ Frame bulunamadı! Tolerans artırılıyor...", Color3.fromRGB(255, 100, 100))
                         failedChecks = failedChecks + 1
                         updateTolerance(failedChecks, maxFailedChecks)
                         
                         if failedChecks >= maxFailedChecks then
-                            addDebugLog(" KICK DETECTED! Frame not found - Server hopping...", Color3.fromRGB(255, 0, 0))
+                            addDebugLog("🚫 KICK ALGILANDI! Frame bulunamıyor - Server hop yapılıyor...", Color3.fromRGB(255, 0, 0))
+                            print("🚫 KICK ALGILANDI! Frame bulunamıyor - " .. maxFailedChecks .. " kez başarısız kontrol")
                             isTweenActive = false
                             if colorCheckConnection then
                                 colorCheckConnection:Disconnect()
@@ -2141,7 +2362,7 @@ function frameTween(targetCFrame)
                 if parkingBrakeColorFrame then
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.P, false, game)
                     updatePKeyStatus(true)
-                    addDebugLog("P key PRESSED", Color3.fromRGB(255, 100, 100))
+                    addDebugLog("P tuşu BASILDI", Color3.fromRGB(255, 100, 100))
                     
                     task.wait(0.3)
                     
@@ -2162,10 +2383,11 @@ function frameTween(targetCFrame)
                         updatePKeyStatus(false)
                         failedChecks = failedChecks + 1
                         updateTolerance(failedChecks, maxFailedChecks)
-                        addDebugLog(" Frame inaccessible! Tolerance: " .. failedChecks .. "/" .. maxFailedChecks, Color3.fromRGB(255, 100, 100))
+                        addDebugLog("⚠️ Frame erişilemiyor! Tolerans: " .. failedChecks .. "/" .. maxFailedChecks, Color3.fromRGB(255, 100, 100))
                         
                         if failedChecks >= maxFailedChecks then
-                            addDebugLog(" KICK DETECTED! Frame inaccessible - Server hopping...", Color3.fromRGB(255, 0, 0))
+                            addDebugLog("🚫 KICK ALGILANDI! Frame erişilemiyor - Server hop yapılıyor...", Color3.fromRGB(255, 0, 0))
+                            print("🚫 KICK ALGILANDI! Frame erişilemiyor - " .. maxFailedChecks .. " kez başarısız kontrol")
                             isTweenActive = false
                             if colorCheckConnection then
                                 colorCheckConnection:Disconnect()
@@ -2188,10 +2410,11 @@ function frameTween(targetCFrame)
                         updatePKeyStatus(false)
                         failedChecks = failedChecks + 1
                         updateTolerance(failedChecks, maxFailedChecks)
-                        addDebugLog(" Invalid color detected (RGB(0,0,0))! Tolerance: " .. failedChecks .. "/" .. maxFailedChecks, Color3.fromRGB(255, 100, 100))
+                        addDebugLog("⚠️ Geçersiz renk algılandı (RGB(0,0,0))! Tolerans: " .. failedChecks .. "/" .. maxFailedChecks, Color3.fromRGB(255, 100, 100))
                         
                         if failedChecks >= maxFailedChecks then
-                            addDebugLog(" KICK DETECTED! Invalid color - Server hopping...", Color3.fromRGB(255, 0, 0))
+                            addDebugLog("🚫 KICK ALGILANDI! Geçersiz renk - Server hop yapılıyor...", Color3.fromRGB(255, 0, 0))
+                            print("🚫 KICK ALGILANDI! Geçersiz renk - " .. maxFailedChecks .. " kez başarısız kontrol")
                             isTweenActive = false
                             if colorCheckConnection then
                                 colorCheckConnection:Disconnect()
@@ -2207,7 +2430,7 @@ function frameTween(targetCFrame)
                     
                     local colorMatch = math.abs(r - expectedR) <= 5 and math.abs(g - expectedG) <= 5 and math.abs(b - expectedB) <= 5
                     
-                    addDebugLog("Color check: RGB(" .. r .. "," .. g .. "," .. b .. ") - Expected: RGB(39,174,96)", colorMatch and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 165, 0))
+                    addDebugLog("Renk kontrolü: RGB(" .. r .. "," .. g .. "," .. b .. ") - Beklenen: RGB(39,174,96)", colorMatch and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 165, 0))
                     
                     if colorMatch then
                         colorChanged = true
@@ -2215,18 +2438,18 @@ function frameTween(targetCFrame)
                         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.P, false, game)
                         updatePKeyStatus(false)
                         updateTolerance(failedChecks, maxFailedChecks)
-                        addDebugLog(" Color correct! P key released, tolerance reset", Color3.fromRGB(100, 255, 100))
+                        addDebugLog("✅ Renk doğru! P tuşu bırakıldı, tolerans sıfırlandı", Color3.fromRGB(100, 255, 100))
                     else
                         local checkStartTime = tick()
                         local checkDuration = 3
                         local checkCount = 0
-                        addDebugLog(" Color wrong, checking every 0.1 seconds for 3 seconds...", Color3.fromRGB(255, 165, 0))
+                        addDebugLog("⚠️ Renk yanlış, 3 saniye boyunca her 0.1 saniyede bir kontrol ediliyor...", Color3.fromRGB(255, 165, 0))
                         
                         while (tick() - checkStartTime) < checkDuration do
                             if hasTriggeredHop or not isTweenActive then 
                                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.P, false, game)
                                 updatePKeyStatus(false)
-                                addDebugLog("Tween stopped, P key released", Color3.fromRGB(200, 200, 200))
+                                addDebugLog("Tween durdu, P tuşu bırakıldı", Color3.fromRGB(200, 200, 200))
                                 return 
                             end
                             
@@ -2247,7 +2470,7 @@ function frameTween(targetCFrame)
                             end)
                             
                             if not checkSuccess or not frameStillValid then
-                                addDebugLog(" Frame lost during tween! Tolerance will count", Color3.fromRGB(255, 100, 100))
+                                addDebugLog("⚠️ Tween anında frame kayboldu! Tolerans sayılacak", Color3.fromRGB(255, 100, 100))
                                 colorChanged = false
                                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.P, false, game)
                                 updatePKeyStatus(false)
@@ -2257,7 +2480,7 @@ function frameTween(targetCFrame)
                             local checkR, checkG, checkB = math.floor(checkColor.R * 255), math.floor(checkColor.G * 255), math.floor(checkColor.B * 255)
                             
                             if (checkR == 0 and checkG == 0 and checkB == 0) then
-                                addDebugLog(" Invalid color detected during tween! Tolerance will count", Color3.fromRGB(255, 100, 100))
+                                addDebugLog("⚠️ Tween anında geçersiz renk algılandı! Tolerans sayılacak", Color3.fromRGB(255, 100, 100))
                                 colorChanged = false
                                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.P, false, game)
                                 updatePKeyStatus(false)
@@ -2267,7 +2490,7 @@ function frameTween(targetCFrame)
                             colorMatch = math.abs(checkR - expectedR) <= 5 and math.abs(checkG - expectedG) <= 5 and math.abs(checkB - expectedB) <= 5
                             
                             if checkCount % 5 == 0 then
-                                addDebugLog(" Kontrol #" .. checkCount .. " (" .. string.format("%.1f", elapsedTime) .. "s): RGB(" .. checkR .. "," .. checkG .. "," .. checkB .. ")", colorMatch and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 165, 0))
+                                addDebugLog("🔄 Kontrol #" .. checkCount .. " (" .. string.format("%.1f", elapsedTime) .. "s): RGB(" .. checkR .. "," .. checkG .. "," .. checkB .. ")", colorMatch and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 165, 0))
                             end
                             
                             if colorMatch then
@@ -2276,7 +2499,7 @@ function frameTween(targetCFrame)
                                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.P, false, game)
                                 updatePKeyStatus(false)
                                 updateTolerance(failedChecks, maxFailedChecks)
-                                addDebugLog(" Color changed! (Check #" .. checkCount .. ", " .. string.format("%.1f", elapsedTime) .. "s) P key released, tolerance reset", Color3.fromRGB(100, 255, 100))
+                                addDebugLog("✅ Renk değişti! (Kontrol #" .. checkCount .. ", " .. string.format("%.1f", elapsedTime) .. "s) P tuşu bırakıldı, tolerans sıfırlandı", Color3.fromRGB(100, 255, 100))
                                 break
                             end
                             
@@ -2285,7 +2508,7 @@ function frameTween(targetCFrame)
                         
                         if not colorChanged then
                             local totalTime = tick() - checkStartTime
-                            addDebugLog(" 3 saniye completed: " .. checkCount .. " checks done (" .. string.format("%.1f", totalTime) .. "s)", Color3.fromRGB(200, 200, 200))
+                            addDebugLog("⏱️ 3 saniye tamamlandı: " .. checkCount .. " kontrol yapıldı (" .. string.format("%.1f", totalTime) .. "s)", Color3.fromRGB(200, 200, 200))
                         end
                         
                         if not colorChanged then
@@ -2293,11 +2516,12 @@ function frameTween(targetCFrame)
                             updatePKeyStatus(false)
                             failedChecks = failedChecks + 1
                             updateTolerance(failedChecks, maxFailedChecks)
-                            addDebugLog(" Color did not change after 3 seconds! Tolerance: " .. failedChecks .. "/" .. maxFailedChecks, Color3.fromRGB(255, 100, 100))
-                            ")
+                            addDebugLog("❌ 3 saniye sonunda renk değişmedi! Tolerans: " .. failedChecks .. "/" .. maxFailedChecks, Color3.fromRGB(255, 100, 100))
+                            print("⚠️ P tuşuna basıldı ama 3 saniye içinde renk değişmedi (Başarısız kontrol: " .. failedChecks .. "/" .. maxFailedChecks .. ")")
                             
                             if failedChecks >= maxFailedChecks then
-                                addDebugLog(" KICK DETECTED! Server hopping...", Color3.fromRGB(255, 0, 0))
+                                addDebugLog("🚫 KICK ALGILANDI! Server hop yapılıyor...", Color3.fromRGB(255, 0, 0))
+                                print("🚫 KICK ALGILANDI! " .. maxFailedChecks .. " kez başarısız kontrol - Renk hiç değişmedi")
                                 isTweenActive = false
                                 if colorCheckConnection then
                                     colorCheckConnection:Disconnect()
@@ -2323,7 +2547,7 @@ function frameTween(targetCFrame)
         isTweenActive = false
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.P, false, game)
         updatePKeyStatus(false)
-        addDebugLog("Tween completed, P key released", Color3.fromRGB(200, 200, 200))
+        addDebugLog("Tween tamamlandı, P tuşu bırakıldı", Color3.fromRGB(200, 200, 200))
         
         if colorCheckConnection then
             colorCheckConnection:Disconnect()
@@ -2345,38 +2569,43 @@ function frameTween(targetCFrame)
     
     local isGoingToOsso = false
     local isGoingToContainer = false
-    local threshold = 50
-
+    local threshold = 50  -- Bölge algılama eşiği
+    
+    -- Osso bölgesine veya waypoint'lerine mi gidiliyor?
     if (finalTargetPos - ossoregionDirect.Position).Magnitude < threshold then
         isGoingToOsso = true
         _G.ossoVisitedOnce = true
-        ")
+        print("🎯 Hedef: Osso Region (Direct)")
     end
-
+    
+    -- Container bölgesine mi gidiliyor? (Özel durum)
     if not isGoingToOsso and (finalTargetPos - contaregion.Position).Magnitude < threshold then
         isGoingToContainer = true
-        ")
+        print("🎯 Hedef: Container Region (Özel Yükseklik)")
     end
 
+    -- İlk kez Gas bölgesine mi gidiliyor?
     local isFirstGasTarget = false
     if not isGoingToOsso and not isGoingToContainer and isFirstGasMove and (finalTargetPos - gasregion.Position).Magnitude < threshold then
         isFirstGasTarget = true
-        isFirstGasMove = false
-        ")
+        isFirstGasMove = false -- Bir dahaki sefere varsayılan yükseklik kullanılacak
+        print("🎯 Hedef: Gas Region (İLK GİDİŞ - Özel Yükseklik)")
     end
-
-    local travelY = -1.8
+    
+    -- Seyahat yüksekliğini belirle
+    local travelY = -1.8 -- Varsayılan (Gas, Ares)
     if _G.lockHeightTo7 then
         travelY = 7
     elseif isGoingToOsso then
         travelY = 7
-        _G.lockHeightTo7 = true
+        _G.lockHeightTo7 = true -- Osso'ya gidiliyorsa artık her zaman 7'yi kullan
     elseif isGoingToContainer or isFirstGasTarget then
         travelY = -1.80769644
     end
     
-    " or isGoingToContainer and " (Container Move)" or " (Default)"))
-
+    print("✈️ Seyahat yüksekliği belirlendi: " .. travelY .. (isGoingToOsso and " (Osso/AutoLock)" or isGoingToContainer and " (Container Move)" or " (Default)"))
+    
+    -- Yatay bakış açısını koruyarak seyahat CFramelerini oluştur
     local flatFace = Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z)
     if flatFace.Magnitude < 0.1 then 
         flatFace = Vector3.new(startCF.LookVector.X, 0, startCF.LookVector.Z)
@@ -2384,24 +2613,29 @@ function frameTween(targetCFrame)
     if flatFace.Magnitude < 0.1 then flatFace = Vector3.new(0, 0, 1) end
     flatFace = flatFace.Unit
 
-    ")
+    -- PHASE 1: Mevcut konumda hedef seyahat yüksekliğine (travelY) dikey hareket
+    print("🚗 PHASE 1: Mevcut konumda seyahat yüksekliğine gidiliyor... (Y: " .. travelY .. ")")
     local phase1EndPos = Vector3.new(startPos.X, travelY, startPos.Z)
     local phase1EndCF = CFrame.lookAt(phase1EndPos, phase1EndPos + flatFace)
     smoothMove(startCF, phase1EndCF, true)
     task.wait(0.1)
-
-    ")
+    
+    -- PHASE 2: Hedefin XZ koordinatlarına seyahat yüksekliğinde düz ilerleme
+    print("🚗 PHASE 2: Seyahat yüksekliğinde hedefe yatay ilerleme... (Sabit Y: " .. travelY .. ")")
     local phase2EndPos = Vector3.new(finalTargetPos.X, travelY, finalTargetPos.Z)
     local phase2EndCF = CFrame.lookAt(phase2EndPos, phase2EndPos + flatFace)
     smoothMove(phase1EndCF, phase2EndCF, false)
     task.wait(0.1)
-
-    ")
+    
+    -- PHASE 3: Hedefin tam altından/üstünden asıl hedef yüksekliğine ve açısına hareket
+    print("🚗 PHASE 3: Hedefin tam üzerinden/altından dikey iniş... (Final Y: " .. finalTargetPos.Y .. ")")
     smoothMove(phase2EndCF, targetCFrame, true)
 
     failedChecks = 0
     updateTolerance(failedChecks, maxFailedChecks)
-    addDebugLog(" frameTween completed, tolerance reset (0/3)", Color3.fromRGB(100, 200, 255))
+    addDebugLog("🔄 frameTween tamamlandı, tolerans sıfırlandı (0/3)", Color3.fromRGB(100, 200, 255))
+    print("🔄 frameTween tamamlandı, tolerans sıfırlandı")
+
     for part, props in pairs(originalProps) do
         if part and part.Parent then
             part.Velocity = props.v
@@ -2413,22 +2647,31 @@ function frameTween(targetCFrame)
 
     vehicle:SetPrimaryPartCFrame(targetCFrame)
     driveSeat:Sit(humanoid)
-    end
+    print("✅ Araç başarıyla ulaştı.")
+end
+
+
+
+
+
 
 function bringcar()
     local player = game:GetService("Players").LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
     if not character or not character:FindFirstChild("HumanoidRootPart") then
+        warn("Karakter veya HumanoidRootPart bulunamadı.")
         return false
     end
 
     local car = workspace:FindFirstChild("Vehicles") and workspace.Vehicles:FindFirstChild(player.Name)
     if not car then
+        warn("Araç bulunamadı.")
         return false
     end
 
     local driveSeat = car:FindFirstChild("DriveSeat", true)
     if not driveSeat then
+        warn("DriveSeat bulunamadı.")
         return false
     end
 
@@ -2447,11 +2690,16 @@ function bringcar()
     end
 
     if character:FindFirstChildOfClass("Humanoid").SeatPart ~= driveSeat then
+        warn("Karakter araca bindirilemedi.")
         return false
     end
 
+    print("Araç başarıyla getirildi ve karakter bindirildi.")
     return true
 end
+
+
+
 
 function ClubRob()
     local originalDetectDistance = dedectdistance
@@ -2494,7 +2742,7 @@ function ClubRob()
             hasBomb = true
             break
         end
-        ")
+        print("⚠️ Bomba henüz ele alınamadı, tekrar deneniyor... (" .. i .. "/5)")
         bombequip()
         task.wait(0.6)
     end
@@ -2527,7 +2775,8 @@ function ClubRob()
             character.HumanoidRootPart.Anchored = false
         end
     else
-        end
+        warn("🔴 Bomba ekipmanı alınamadığı için atılamadı!")
+    end
     
     if detectPolice("Club") then dedectdistance = originalDetectDistance return end
     
@@ -2564,17 +2813,17 @@ function ClubRob()
                     Collected[m] = true
                     task.spawn(function()
                         local code = (folder == moneyFolder) and MONEY_COLLECT_CODE or GOLD_COLLECT_CODE
-                        : " .. m.Name .. " | Transparency: " .. m.Transparency .. " | Code: " .. code)
+                        print("📤 Sending (Club): " .. m.Name .. " | Transparency: " .. m.Transparency .. " | Code: " .. code)
                         RemoteEvents.RobEvent:FireServer(m, code, true)
                         task.wait(ProximityPromptTimeBetClub)
                         RemoteEvents.RobEvent:FireServer(m, code, false)
                         task.wait(0.5)
                         
                         if m and m.Parent and m.Transparency == 0 then
-                            : " .. m.Name .. " (Transparency: 0) - Will retry")
+                            print("♻️ Reset (Club): " .. m.Name .. " (Transparency: 0) - Tekrar deneyecek")
                             Collected[m] = nil
                         else
-                            : " .. m.Name .. " (Transparency: " .. (m and m.Transparency or 1) .. ")")
+                            print("✅ Toplandı (Club): " .. m.Name .. " (Transparency: " .. (m and m.Transparency or 1) .. ")")
                         end
                     end)
                 end
@@ -2585,8 +2834,11 @@ function ClubRob()
     local startTime = tick()
     local maxDuration = 15
     
+    print("💰 Club Toplama Başladı - Maksimum 15 saniye...")
+    
     while tick() - startTime < maxDuration do
         if detectPolice("Club") then 
+            print("⚠️ Polis yaklaştığı için toplama kesildi!")
             break 
         end
         
@@ -2613,7 +2865,7 @@ function ClubRob()
         
         if visibleItems == 0 then
             local elapsed = math.floor(tick() - startTime)
-            ")
+            print("✓ Tüm öğeler toplandı! (" .. elapsed .. " saniye)")
             break
         end
         
@@ -2628,12 +2880,17 @@ function ClubRob()
     clubLockTime = os.time()
    
     dedectdistance = originalDetectDistance
-    end
+    print("✅ Club Soygunu Tamamlandı!")
+end
+
+
+
 
 function ContaineroneRob()
     updateHealthTracking()
 
     if not checkBeforeRobbery() then
+        print("⚠️ Robbery başlatılamıyor, Containerone soygunu durduruldu.")
         return
     end
 
@@ -2656,6 +2913,7 @@ function ContaineroneRob()
 
     if detectPolice("Containerone") then return end
 
+
     plrTween(CFrame.new(
         1106.7074, 28.669241, 2176.46753,
         0.513249218, 0, -0.858239591,
@@ -2672,6 +2930,8 @@ function ContaineroneRob()
     local oldCameraType = camera.CameraType
     local oldCameraCFrame = camera.CFrame
 
+
+
     camera.CameraType = Enum.CameraType.Scriptable
     camera.CFrame = CFrame.new(
         1096.15295, 33.4737244, 2183.10547,
@@ -2686,6 +2946,7 @@ function ContaineroneRob()
 
     camera.CameraType = oldCameraType
     camera.CFrame = oldCameraCFrame
+
 
     if detectPolice("Containerone") then return end
 
@@ -2721,8 +2982,13 @@ function ContaineroneRob()
     end
 
     if not containerModel then
+        warn("❌ ContainerRobbery modeli bulunamadı!")
         return
     end
+
+
+
+
 
 local Range = 30
 local CollectTime = ProximityPromptTimeBet
@@ -2750,15 +3016,19 @@ local Collected = {}
 local function collectFolder(folderName, collectCode)
     local folder = containerModel:FindFirstChild(folderName)
     if not folder then 
+        print("["..folderName.."] Folder bulunamadı!")
         return 
     end
     
+    print("=== ["..folderName.."] TOPLAMA BAŞLADI ===")
+    
     local totalCollected = 0
-    local maxRounds = 5
+    local maxRounds = 5  -- Maximum 5 collection rounds
     
     for round = 1, maxRounds do
         local itemsToCollect = {}
-
+        
+        -- Find all collectable items in range
         for _, item in ipairs(folder:GetChildren()) do
             local target = getTransparencyTarget(item)
             if isItemCollectable(target) and not Collected[target] then
@@ -2770,9 +3040,13 @@ local function collectFolder(folderName, collectCode)
         end
         
         if #itemsToCollect == 0 then
+            print("["..folderName.."] Round "..round..": Yakında toplanacak item yok")
             break
         end
-
+        
+        print("["..folderName.."] Round "..round..": "..#itemsToCollect.." item toplamaya başlanıyor...")
+        
+        -- Collect ALL items simultaneously (like ClubRob)
         for _, data in ipairs(itemsToCollect) do
             Collected[data.target] = true
             task.spawn(function()
@@ -2781,7 +3055,8 @@ local function collectFolder(folderName, collectCode)
         end
         
         task.wait(CollectTime)
-
+        
+        -- Send false to all items
         for _, data in ipairs(itemsToCollect) do
             task.spawn(function()
                 RemoteEvents.RobEvent:FireServer(data.target, collectCode, false)
@@ -2789,11 +3064,12 @@ local function collectFolder(folderName, collectCode)
         end
         
         task.wait(0.8)
-
+        
+        -- Verify collection and reset failed ones
         local roundCollected = 0
         for _, data in ipairs(itemsToCollect) do
             if data.target and data.target.Parent and data.target.Transparency == 0 then
-
+                -- Failed to collect, reset for retry
                 Collected[data.target] = nil
             else
                 roundCollected = roundCollected + 1
@@ -2801,9 +3077,12 @@ local function collectFolder(folderName, collectCode)
         end
         
         totalCollected = totalCollected + roundCollected
+        print("["..folderName.."] Round "..round.." tamamlandı: "..roundCollected.."/"..#itemsToCollect.." toplandı")
+        
         task.wait(0.3)
     end
-
+    
+    -- Check for distant items (beyond Range)
     local distantItems = {}
     for _, item in ipairs(folder:GetChildren()) do
         local target = getTransparencyTarget(item)
@@ -2817,11 +3096,14 @@ local function collectFolder(folderName, collectCode)
     
     if #distantItems > 0 then
         table.sort(distantItems, function(a, b) return a.distance < b.distance end)
+        print("["..folderName.."] "..#distantItems.." uzak item bulundu, gidiliyor...")
+        
         for _, data in ipairs(distantItems) do
             local targetPos = data.target.Position + Vector3.new(0, 2, 0)
             plrTween(CFrame.new(targetPos))
             task.wait(0.3)
-
+            
+            -- Collect all items within 20 studs of this position
             local nearbyBatch = {}
             for _, otherData in ipairs(distantItems) do
                 if isItemCollectable(otherData.target) and not Collected[otherData.target] then
@@ -2832,7 +3114,8 @@ local function collectFolder(folderName, collectCode)
                     end
                 end
             end
-
+            
+            -- Collect batch simultaneously
             for _, batchData in ipairs(nearbyBatch) do
                 task.spawn(function()
                     RemoteEvents.RobEvent:FireServer(batchData.target, collectCode, true)
@@ -2846,7 +3129,8 @@ local function collectFolder(folderName, collectCode)
                 end)
             end
             task.wait(0.6)
-
+            
+            -- Verify
             local batchCollected = 0
             for _, batchData in ipairs(nearbyBatch) do
                 if not (batchData.target and batchData.target.Parent and batchData.target.Transparency == 0) then
@@ -2855,27 +3139,36 @@ local function collectFolder(folderName, collectCode)
             end
             
             totalCollected = totalCollected + batchCollected
+            print("["..folderName.."] Uzak batch: "..batchCollected.."/"..#nearbyBatch.." toplandı")
+            
             task.wait(0.2)
         end
     end
     
-    ===\n")
+    print("=== ["..folderName.."] TOPLAMA TAMAMLANDI (Toplam: "..totalCollected..") ===\n")
 end
+
 
 collectFolder("Items", GOLD_COLLECT_CODE)
 task.wait(0.6)
 
 collectFolder("Money", MONEY_COLLECT_CODE)
 
+
+
+
+
     frameTween(contaregion)
     containeronelock = true
     containeroneLockTime = os.time()
 end
 
+
 function ContainertwoRob()
     updateHealthTracking()
 
     if not checkBeforeRobbery() then
+        print("⚠️ Robbery başlatılamıyor, Containerone soygunu durduruldu.")
         return
     end
 
@@ -2909,6 +3202,7 @@ function ContainertwoRob()
     local oldCameraType = camera.CameraType
     local oldCameraCFrame = camera.CFrame
 
+
     camera.CameraType = Enum.CameraType.Scriptable
     camera.CFrame = CFrame.new(1190.74744, 34.9694366, 2146.77612, -0.501333475, -0.208064973, 0.839865327, 0, 0.970657349, 0.240466908, -0.865254104, 0.120554112, -0.486623079)
 
@@ -2919,7 +3213,9 @@ function ContainertwoRob()
     camera.CameraType = oldCameraType
     camera.CFrame = oldCameraCFrame
 
+
     if detectPolice("Containertwo") then return end
+
 
     plrTween(CFrame.new(1197.71875, 28.6692448, 2142.79517, -0.556013286, -4.41213643e-08, 0.83117342, 1.19582708e-08, 1, 6.10827087e-08, -0.83117342, 4.39021939e-08, -0.556013286))
 
@@ -2953,8 +3249,13 @@ function ContainertwoRob()
     end
 
     if not containerModel then
+        warn("❌ ContainertwoRobbery modeli bulunamadı!")
         return
     end
+
+
+
+
 
 local Range = 30
 local CollectTime = ProximityPromptTimeBet
@@ -2982,15 +3283,19 @@ local Collected = {}
 local function collectFolder(folderName, collectCode)
     local folder = containerModel:FindFirstChild(folderName)
     if not folder then 
+        print("["..folderName.."] Folder bulunamadı!")
         return 
     end
     
+    print("=== ["..folderName.."] TOPLAMA BAŞLADI ===")
+    
     local totalCollected = 0
-    local maxRounds = 5
+    local maxRounds = 5  -- Maximum 5 collection rounds
     
     for round = 1, maxRounds do
         local itemsToCollect = {}
-
+        
+        -- Find all collectable items in range
         for _, item in ipairs(folder:GetChildren()) do
             local target = getTransparencyTarget(item)
             if isItemCollectable(target) and not Collected[target] then
@@ -3002,9 +3307,13 @@ local function collectFolder(folderName, collectCode)
         end
         
         if #itemsToCollect == 0 then
+            print("["..folderName.."] Round "..round..": Yakında toplanacak item yok")
             break
         end
-
+        
+        print("["..folderName.."] Round "..round..": "..#itemsToCollect.." item toplamaya başlanıyor...")
+        
+        -- Collect ALL items simultaneously (like ClubRob)
         for _, data in ipairs(itemsToCollect) do
             Collected[data.target] = true
             task.spawn(function()
@@ -3013,7 +3322,8 @@ local function collectFolder(folderName, collectCode)
         end
         
         task.wait(CollectTime)
-
+        
+        -- Send false to all items
         for _, data in ipairs(itemsToCollect) do
             task.spawn(function()
                 RemoteEvents.RobEvent:FireServer(data.target, collectCode, false)
@@ -3021,11 +3331,12 @@ local function collectFolder(folderName, collectCode)
         end
         
         task.wait(0.8)
-
+        
+        -- Verify collection and reset failed ones
         local roundCollected = 0
         for _, data in ipairs(itemsToCollect) do
             if data.target and data.target.Parent and data.target.Transparency == 0 then
-
+                -- Failed to collect, reset for retry
                 Collected[data.target] = nil
             else
                 roundCollected = roundCollected + 1
@@ -3033,9 +3344,12 @@ local function collectFolder(folderName, collectCode)
         end
         
         totalCollected = totalCollected + roundCollected
+        print("["..folderName.."] Round "..round.." tamamlandı: "..roundCollected.."/"..#itemsToCollect.." toplandı")
+        
         task.wait(0.3)
     end
-
+    
+    -- Check for distant items (beyond Range)
     local distantItems = {}
     for _, item in ipairs(folder:GetChildren()) do
         local target = getTransparencyTarget(item)
@@ -3049,11 +3363,14 @@ local function collectFolder(folderName, collectCode)
     
     if #distantItems > 0 then
         table.sort(distantItems, function(a, b) return a.distance < b.distance end)
+        print("["..folderName.."] "..#distantItems.." uzak item bulundu, gidiliyor...")
+        
         for _, data in ipairs(distantItems) do
             local targetPos = data.target.Position + Vector3.new(0, 2, 0)
             plrTween(CFrame.new(targetPos))
             task.wait(0.3)
-
+            
+            -- Collect all items within 20 studs of this position
             local nearbyBatch = {}
             for _, otherData in ipairs(distantItems) do
                 if isItemCollectable(otherData.target) and not Collected[otherData.target] then
@@ -3064,7 +3381,8 @@ local function collectFolder(folderName, collectCode)
                     end
                 end
             end
-
+            
+            -- Collect batch simultaneously
             for _, batchData in ipairs(nearbyBatch) do
                 task.spawn(function()
                     RemoteEvents.RobEvent:FireServer(batchData.target, collectCode, true)
@@ -3078,7 +3396,8 @@ local function collectFolder(folderName, collectCode)
                 end)
             end
             task.wait(0.6)
-
+            
+            -- Verify
             local batchCollected = 0
             for _, batchData in ipairs(nearbyBatch) do
                 if not (batchData.target and batchData.target.Parent and batchData.target.Transparency == 0) then
@@ -3087,27 +3406,37 @@ local function collectFolder(folderName, collectCode)
             end
             
             totalCollected = totalCollected + batchCollected
+            print("["..folderName.."] Uzak batch: "..batchCollected.."/"..#nearbyBatch.." toplandı")
+            
             task.wait(0.2)
         end
     end
     
-    ===\n")
+    print("=== ["..folderName.."] TOPLAMA TAMAMLANDI (Toplam: "..totalCollected..") ===\n")
 end
+
 
 collectFolder("Items", GOLD_COLLECT_CODE)
 task.wait(0.6)
 
 collectFolder("Money", MONEY_COLLECT_CODE)
 
+
+
+
+
     frameTween(contaregion)
     containertwolock = true
     containertwoLockTime = os.time()
 end
 
+
+
 function ContainerthreeRob()
     updateHealthTracking()
 
     if not checkBeforeRobbery() then
+        print("⚠️ Robbery başlatılamıyor, Containerone soygunu durduruldu.")
         return
     end
 
@@ -3141,6 +3470,7 @@ function ContainerthreeRob()
     local oldCameraType = camera.CameraType
     local oldCameraCFrame = camera.CFrame
 
+
     camera.CameraType = Enum.CameraType.Scriptable
     camera.CFrame = CFrame.new(1091.34741, 36.3098907, 2335.38208, 0.513874054, 0.263785958, -0.816302955, 0, 0.95155108, 0.307490975, 0.857865691, -0.15801163, 0.488977343)
 
@@ -3152,6 +3482,7 @@ function ContainerthreeRob()
     camera.CFrame = oldCameraCFrame
 
     if detectPolice("Containerthree") then return end
+
 
     plrTween(CFrame.new(1085.97607, 28.6692123, 2344.79199, 0.306023389, -4.15196517e-08, -0.952023983, -2.66976201e-08, 1, -5.21937977e-08, 0.952023983, 4.13892955e-08, 0.306023389))
 
@@ -3185,8 +3516,13 @@ function ContainerthreeRob()
     end
 
     if not containerModel then
+        warn("❌ ContainerRobbery modeli bulunamadı!")
         return
     end
+
+
+
+
 
 local Range = 30
 local CollectTime = ProximityPromptTimeBet
@@ -3214,15 +3550,19 @@ local Collected = {}
 local function collectFolder(folderName, collectCode)
     local folder = containerModel:FindFirstChild(folderName)
     if not folder then 
+        print("["..folderName.."] Folder bulunamadı!")
         return 
     end
     
+    print("=== ["..folderName.."] TOPLAMA BAŞLADI ===")
+    
     local totalCollected = 0
-    local maxRounds = 5
+    local maxRounds = 5  -- Maximum 5 collection rounds
     
     for round = 1, maxRounds do
         local itemsToCollect = {}
-
+        
+        -- Find all collectable items in range
         for _, item in ipairs(folder:GetChildren()) do
             local target = getTransparencyTarget(item)
             if isItemCollectable(target) and not Collected[target] then
@@ -3234,9 +3574,13 @@ local function collectFolder(folderName, collectCode)
         end
         
         if #itemsToCollect == 0 then
+            print("["..folderName.."] Round "..round..": Yakında toplanacak item yok")
             break
         end
-
+        
+        print("["..folderName.."] Round "..round..": "..#itemsToCollect.." item toplamaya başlanıyor...")
+        
+        -- Collect ALL items simultaneously (like ClubRob)
         for _, data in ipairs(itemsToCollect) do
             Collected[data.target] = true
             task.spawn(function()
@@ -3245,7 +3589,8 @@ local function collectFolder(folderName, collectCode)
         end
         
         task.wait(CollectTime)
-
+        
+        -- Send false to all items
         for _, data in ipairs(itemsToCollect) do
             task.spawn(function()
                 RemoteEvents.RobEvent:FireServer(data.target, collectCode, false)
@@ -3253,11 +3598,12 @@ local function collectFolder(folderName, collectCode)
         end
         
         task.wait(0.8)
-
+        
+        -- Verify collection and reset failed ones
         local roundCollected = 0
         for _, data in ipairs(itemsToCollect) do
             if data.target and data.target.Parent and data.target.Transparency == 0 then
-
+                -- Failed to collect, reset for retry
                 Collected[data.target] = nil
             else
                 roundCollected = roundCollected + 1
@@ -3265,9 +3611,12 @@ local function collectFolder(folderName, collectCode)
         end
         
         totalCollected = totalCollected + roundCollected
+        print("["..folderName.."] Round "..round.." tamamlandı: "..roundCollected.."/"..#itemsToCollect.." toplandı")
+        
         task.wait(0.3)
     end
-
+    
+    -- Check for distant items (beyond Range)
     local distantItems = {}
     for _, item in ipairs(folder:GetChildren()) do
         local target = getTransparencyTarget(item)
@@ -3281,11 +3630,14 @@ local function collectFolder(folderName, collectCode)
     
     if #distantItems > 0 then
         table.sort(distantItems, function(a, b) return a.distance < b.distance end)
+        print("["..folderName.."] "..#distantItems.." uzak item bulundu, gidiliyor...")
+        
         for _, data in ipairs(distantItems) do
             local targetPos = data.target.Position + Vector3.new(0, 2, 0)
             plrTween(CFrame.new(targetPos))
             task.wait(0.3)
-
+            
+            -- Collect all items within 20 studs of this position
             local nearbyBatch = {}
             for _, otherData in ipairs(distantItems) do
                 if isItemCollectable(otherData.target) and not Collected[otherData.target] then
@@ -3296,7 +3648,8 @@ local function collectFolder(folderName, collectCode)
                     end
                 end
             end
-
+            
+            -- Collect batch simultaneously
             for _, batchData in ipairs(nearbyBatch) do
                 task.spawn(function()
                     RemoteEvents.RobEvent:FireServer(batchData.target, collectCode, true)
@@ -3310,7 +3663,8 @@ local function collectFolder(folderName, collectCode)
                 end)
             end
             task.wait(0.6)
-
+            
+            -- Verify
             local batchCollected = 0
             for _, batchData in ipairs(nearbyBatch) do
                 if not (batchData.target and batchData.target.Parent and batchData.target.Transparency == 0) then
@@ -3319,27 +3673,36 @@ local function collectFolder(folderName, collectCode)
             end
             
             totalCollected = totalCollected + batchCollected
+            print("["..folderName.."] Uzak batch: "..batchCollected.."/"..#nearbyBatch.." toplandı")
+            
             task.wait(0.2)
         end
     end
     
-    ===\n")
+    print("=== ["..folderName.."] TOPLAMA TAMAMLANDI (Toplam: "..totalCollected..") ===\n")
 end
+
 
 collectFolder("Items", GOLD_COLLECT_CODE)
 task.wait(0.6)
 
 collectFolder("Money", MONEY_COLLECT_CODE)
 
+
+
+
     frameTween(contaregion)
     containerthreelock = true
     containerthreeLockTime = os.time()
 end
 
+
+
 function ContainerfourRob()
     updateHealthTracking()
 
     if not checkBeforeRobbery() then
+        print("⚠️ Robbery başlatılamıyor, Containerfour soygunu durduruldu.")
         return
     end
 
@@ -3362,6 +3725,7 @@ function ContainerfourRob()
 
     if detectPolice("Containerfour") then return end
 
+
     plrTween(CFrame.new(1170.84509, 28.6692219, 2308.52148, -0.490529925, 2.37054709e-09, 0.871424317, 1.58402962e-08, 1, 6.19628393e-09, -0.871424317, 1.68430834e-08, -0.490529925))
 
     bombequip()
@@ -3372,6 +3736,7 @@ function ContainerfourRob()
     local camera = workspace.CurrentCamera
     local oldCameraType = camera.CameraType
     local oldCameraCFrame = camera.CFrame
+
 
     camera.CameraType = Enum.CameraType.Scriptable
     camera.CFrame = CFrame.new(1181.77356, 33.1883469, 2302.37012, -0.490502506, -0.204551771, 0.847092628, 0, 0.972061038, 0.234728515, -0.871439815, 0.115134925, -0.476798326)
@@ -3384,6 +3749,7 @@ function ContainerfourRob()
     camera.CFrame = oldCameraCFrame
 
     if detectPolice("Containerfour") then return end
+
 
     plrTween(CFrame.new(1195.85474, 28.6692219, 2302.28784, -0.217762381, -2.64874593e-08, 0.976001799, -7.21264186e-08, 1, 1.10461249e-08, -0.976001799, -6.79900864e-08, -0.217762381))
 
@@ -3417,8 +3783,13 @@ function ContainerfourRob()
     end
 
     if not containerModel then
+        warn("❌ ContainerRobbery modeli bulunamadı!")
         return
     end
+
+
+
+
 
 local Range = 30
 local CollectTime = ProximityPromptTimeBet
@@ -3446,15 +3817,19 @@ local Collected = {}
 local function collectFolder(folderName, collectCode)
     local folder = containerModel:FindFirstChild(folderName)
     if not folder then 
+        print("["..folderName.."] Folder bulunamadı!")
         return 
     end
     
+    print("=== ["..folderName.."] TOPLAMA BAŞLADI ===")
+    
     local totalCollected = 0
-    local maxRounds = 5
+    local maxRounds = 5  -- Maximum 5 collection rounds
     
     for round = 1, maxRounds do
         local itemsToCollect = {}
-
+        
+        -- Find all collectable items in range
         for _, item in ipairs(folder:GetChildren()) do
             local target = getTransparencyTarget(item)
             if isItemCollectable(target) and not Collected[target] then
@@ -3466,9 +3841,13 @@ local function collectFolder(folderName, collectCode)
         end
         
         if #itemsToCollect == 0 then
+            print("["..folderName.."] Round "..round..": Yakında toplanacak item yok")
             break
         end
-
+        
+        print("["..folderName.."] Round "..round..": "..#itemsToCollect.." item toplamaya başlanıyor...")
+        
+        -- Collect ALL items simultaneously (like ClubRob)
         for _, data in ipairs(itemsToCollect) do
             Collected[data.target] = true
             task.spawn(function()
@@ -3477,7 +3856,8 @@ local function collectFolder(folderName, collectCode)
         end
         
         task.wait(CollectTime)
-
+        
+        -- Send false to all items
         for _, data in ipairs(itemsToCollect) do
             task.spawn(function()
                 RemoteEvents.RobEvent:FireServer(data.target, collectCode, false)
@@ -3485,11 +3865,12 @@ local function collectFolder(folderName, collectCode)
         end
         
         task.wait(0.8)
-
+        
+        -- Verify collection and reset failed ones
         local roundCollected = 0
         for _, data in ipairs(itemsToCollect) do
             if data.target and data.target.Parent and data.target.Transparency == 0 then
-
+                -- Failed to collect, reset for retry
                 Collected[data.target] = nil
             else
                 roundCollected = roundCollected + 1
@@ -3497,9 +3878,12 @@ local function collectFolder(folderName, collectCode)
         end
         
         totalCollected = totalCollected + roundCollected
+        print("["..folderName.."] Round "..round.." tamamlandı: "..roundCollected.."/"..#itemsToCollect.." toplandı")
+        
         task.wait(0.3)
     end
-
+    
+    -- Check for distant items (beyond Range)
     local distantItems = {}
     for _, item in ipairs(folder:GetChildren()) do
         local target = getTransparencyTarget(item)
@@ -3513,11 +3897,14 @@ local function collectFolder(folderName, collectCode)
     
     if #distantItems > 0 then
         table.sort(distantItems, function(a, b) return a.distance < b.distance end)
+        print("["..folderName.."] "..#distantItems.." uzak item bulundu, gidiliyor...")
+        
         for _, data in ipairs(distantItems) do
             local targetPos = data.target.Position + Vector3.new(0, 2, 0)
             plrTween(CFrame.new(targetPos))
             task.wait(0.3)
-
+            
+            -- Collect all items within 20 studs of this position
             local nearbyBatch = {}
             for _, otherData in ipairs(distantItems) do
                 if isItemCollectable(otherData.target) and not Collected[otherData.target] then
@@ -3528,7 +3915,8 @@ local function collectFolder(folderName, collectCode)
                     end
                 end
             end
-
+            
+            -- Collect batch simultaneously
             for _, batchData in ipairs(nearbyBatch) do
                 task.spawn(function()
                     RemoteEvents.RobEvent:FireServer(batchData.target, collectCode, true)
@@ -3542,7 +3930,8 @@ local function collectFolder(folderName, collectCode)
                 end)
             end
             task.wait(0.6)
-
+            
+            -- Verify
             local batchCollected = 0
             for _, batchData in ipairs(nearbyBatch) do
                 if not (batchData.target and batchData.target.Parent and batchData.target.Transparency == 0) then
@@ -3551,22 +3940,34 @@ local function collectFolder(folderName, collectCode)
             end
             
             totalCollected = totalCollected + batchCollected
+            print("["..folderName.."] Uzak batch: "..batchCollected.."/"..#nearbyBatch.." toplandı")
+            
             task.wait(0.2)
         end
     end
     
-    ===\n")
+    print("=== ["..folderName.."] TOPLAMA TAMAMLANDI (Toplam: "..totalCollected..") ===\n")
 end
+
 
 collectFolder("Items", GOLD_COLLECT_CODE)
 task.wait(0.6)
 
 collectFolder("Money", MONEY_COLLECT_CODE)
 
+
+
+
+
+
     frameTween(contaregion)
     containerfourlock = true
     containerfourLockTime = os.time()
 end
+
+
+
+
 
 local MAX_DISTANCE = 70
 local BATCH_RADIUS = 20
@@ -3585,6 +3986,7 @@ local function collectMoney(robberyType)
     while true do
         local moneys = {}
 
+        -- 🔍 70 stud içindeki paraları tara
         for _, drop in ipairs(drops:GetChildren()) do
             if drop:IsA("MeshPart")
                 and drop.Name == playerName
@@ -3594,26 +3996,33 @@ local function collectMoney(robberyType)
             end
         end
 
+        -- ❌ Toplanacak para kalmadı
         if #moneys == 0 then
+            print("✅ Tüm paralar toplandı!")
             return true
         end
 
+        -- 📏 Yakından uzağa sırala
         table.sort(moneys, function(a, b)
             return (a.Position - rootPart.Position).Magnitude <
                    (b.Position - rootPart.Position).Magnitude
         end)
 
+        -- 🚨 Polis kontrolü
         if detectPolice(robberyType) then
             lockRobbery(robberyType)
             return false
         end
 
+        -- 🎯 En yakın parayı hedef al
         local targetMoney = moneys[1]
         local targetPos = targetMoney.Position
 
+        -- 🧭 Paranın üstüne git
         plrTween(CFrame.new(targetPos + Vector3.new(0, 3, 0)))
         task.wait(0.35)
 
+        -- 📦 Batch oluştur (20 stud çevresi)
         local batch = {}
         for _, m in ipairs(moneys) do
             if m.Parent
@@ -3623,6 +4032,7 @@ local function collectMoney(robberyType)
             end
         end
 
+        -- ▶️ Collect START
         for _, m in ipairs(batch) do
             task.spawn(function()
                 RemoteEvents.CollectMoney:FireServer(m, CASH_COLLECT_CODE, true)
@@ -3631,6 +4041,7 @@ local function collectMoney(robberyType)
 
         task.wait(ProximityPromptTimeBet)
 
+        -- ⏹️ Collect STOP
         for _, m in ipairs(batch) do
             task.spawn(function()
                 RemoteEvents.CollectMoney:FireServer(m, CASH_COLLECT_CODE, false)
@@ -3638,14 +4049,20 @@ local function collectMoney(robberyType)
         end
 
         task.wait(0.25)
-
+        -- loop başa döner, sahayı tekrar tarar
     end
 end
+
+
+
+
+
 
 function GasngoRob()
     updateHealthTracking()
     
     if not checkBeforeRobbery() then
+        print("⚠️ Robbery başlatılamıyor, Gasngo soygunu durduruldu.")
         return
     end
 
@@ -3750,10 +4167,13 @@ function GasngoRob()
     gasngoLockTime = os.time()
 end
 
+
+
 function AresRob()
     updateHealthTracking()
     
     if not checkBeforeRobbery() then
+        print("⚠️ Robbery başlatılamıyor, Ares soygunu durduruldu.")
         return
     end
 
@@ -3764,6 +4184,7 @@ function AresRob()
     task.wait(0.7)
     
     if detectPolice("Ares") then return end
+
 
     game.Players.LocalPlayer.Character:WaitForChild("Humanoid").Sit = false
     task.wait(0.6)
@@ -3798,12 +4219,14 @@ function OsRob()
     updateHealthTracking()
     
     if not checkBeforeRobbery() then
+        print("⚠️ Robbery başlatılamıyor, Oso soygunu durduruldu ve özel rota ile dönülüyor...")
         returnFromOso()
                 return
             end
     fixedY = 2
     
     task.wait(0.8)
+
 
     local osotopframe = CFrame.new(-103.620995, 3.30231309, -788.135742, 0.00859444309, -0.0130922208, -0.999877334, -0.0261210296, 0.999570131, -0.0133127216, 0.999621868, 0.0262322407, 0.00824876595)
     local tween = frameTween(osotopframe)
@@ -3836,6 +4259,7 @@ function OsRob()
     if detectPolice("Oso") then return end
 
     if not collectMoney("Oso") then
+        print("⚠️ Para toplama sırasında polis algılandı, Oso soygunu durduruldu ve özel rota ile dönülüyor...")
         returnFromOso()
         return
     end
@@ -3843,18 +4267,24 @@ function OsRob()
     osolock = true
     osoLockTime = os.time()
     
+    print("✅ Oso soygunu başarılı, özel rota ile dönülüyor...")
     returnFromOso()
 end
 
 function returnFromOso()
+    print("🔙 Oso'dan dönüş rotası başlatılıyor...")
+    
+    print("Son nokta: OssoRegion'a gidiliyor...")
     frameTween(ossoregionDirect)
     
-    end
+    print("✅ Oso'dan dönüş rotası tamamlandı")
+end
 
 function ClothingRob()
     updateHealthTracking()
     
     if not checkBeforeRobbery() then
+        print("⚠️ Robbery başlatılamıyor, Clothing soygunu durduruldu.")
         return
     end
     fixedY = 2
@@ -4009,6 +4439,7 @@ function FarmRob()
     fixedY = -1.9
     frameTween(CFrame.new(-1132.73645, 7.11486721, -1582.22986, 0.0542224273, 0.0122450525, -0.998453796, 0.0222424176, 0.999661863, 0.0134677738, 0.998281121, -0.0229382813, 0.0539317355))
 end
+
 
 function BankRob()
     updateHealthTracking()
@@ -4197,6 +4628,7 @@ function collectVendingDrops()
     end
     
     if #batch > 0 then
+        print("📦 " .. #batch .. " adet vending eşyası toplanıyor...")
         for _, item in ipairs(batch) do
             RemoteEvents.RobEvent:FireServer(item, VENDING_COLLECT_CODE, true)
         end
@@ -4215,6 +4647,9 @@ function VendingRob(targetVending, associatedRegionCFrame, nextRegionCFrame)
     local glass = targetVending:FindFirstChild("Glass")
     if not glass then return false end
 
+    print("🥤 Vending Machine soyuluyor: " .. targetVending.Name)
+    
+    -- Araç pozisyonu hesapla (frameTween)
     local targetPosition = glass.Position - glass.CFrame.LookVector * 12 + Vector3.new(0, 3, 0)
     local lookDirection = glass.CFrame.RightVector
     local vehicleCFrame = CFrame.lookAt(targetPosition, targetPosition + lookDirection)
@@ -4236,13 +4671,15 @@ function VendingRob(targetVending, associatedRegionCFrame, nextRegionCFrame)
         char.Humanoid.Sit = false
     end
     task.wait(0.9)
-
+    
+    -- Karakter pozisyonu hesapla (plrTween)
     local offsetPosition = glass.Position - glass.CFrame.LookVector * 1.6
     local charCFrame = CFrame.lookAt(offsetPosition, glass.Position)
     
     plrTween(charCFrame)
     task.wait(0.8)
-
+    
+    -- 7 kez F tuşu simülasyonu
     for i = 1, 7 do
         if detectPolice("Vending") then
             if _G.vendingPriority == "After Main Robberys" then
@@ -4268,9 +4705,11 @@ end
 function handleVendingRobbery(associatedRegionCFrame, nextRegionCFrame)
     if not _G.vendingRobberyEnabled then return end
     if not _G.gasRegionReached and _G.vendingPriority == "Before Main Robberys" then
+        print("⏭️ İlk Gas Region'a gidilmediği için başlangıç Vending soygunu atlanıyor.")
         return 
     end
     
+    print("🔍 Soyulabilir Vending Machine aranıyor...")
     local count = 0
     while true do
         local target = findNearestRobbableVending()
@@ -4287,8 +4726,10 @@ function handleVendingRobbery(associatedRegionCFrame, nextRegionCFrame)
     end
     
     if count > 0 then
-        else
-        end
+        print("✅ Yakındaki " .. count .. " adet Vending Machine soyuldu.")
+    else
+        print("⏭️ Yakında soyulabilir Vending Machine bulunamadı.")
+    end
 end
 
 function JewelleryRob()   
@@ -4307,13 +4748,13 @@ function JewelleryRob()
     
     local jewdownframe = CFrame.new(-454.291565, 5.47350025, 3590.7356, 0.939660847, 4.74632067e-08, -0.342107415, -2.46366287e-08, 1, 7.10687047e-08, 0.342107415, -5.83521107e-08, 0.939660847)
     plrTween(jewdownframe)
-    task.wait(0.3)
+    task.wait(0.3)-- down floor 
     if detectPolice("Jewellery") then return end
     
     local jewrofframe = CFrame.new(-432.8013, 21.2489128, 3553.14917, -0.0300017595, -6.28074837e-09, 0.999549866, 2.38728326e-08, 1, 7.0001267e-09, -0.999549866, 2.40721025e-08, -0.0300017595)
     plrTween(jewrofframe)
     task.wait(0.3)
-    if detectPolice("Jewellery") then return end
+    if detectPolice("Jewellery") then return end --second floor
     task.wait(0.3)
 
     bombequip()
@@ -4325,12 +4766,13 @@ function JewelleryRob()
             hasBomb = true
             break
         end
-        , tekrar deneniyor... (" .. i .. "/5)")
+        print("⚠️ Bomba henüz ele alınamadı (Jewellery), tekrar deneniyor... (" .. i .. "/5)")
         bombequip()
         task.wait(0.6)
     end
     
     if not hasBomb then
+        warn("🔴 Bomba ekipmanı alınamadığı için Jewellery soygunu durduruldu!")
         return
     end
 
@@ -4361,7 +4803,7 @@ function JewelleryRob()
     if detectPolice("Jewellery") then return end
     
     plrTween(CFrame.new(-417.024048, 21.2234135, 3552.44507, -0.0595121533, 1.0978416e-07, 0.998227596, 7.88180401e-08, 1, -1.0528013e-07, -0.998227596, 7.24128952e-08, -0.0595121533))
-    task.wait(1)
+    task.wait(1)-- fire position 
     
     if detectPolice("Jewellery") then return end
     
@@ -4393,17 +4835,17 @@ function JewelleryRob()
                     Collected[m] = true
                     task.spawn(function()
                         local code = (folder == moneyFolder) and MONEY_COLLECT_CODE or GOLD_COLLECT_CODE
-                        : " .. m.Name .. " | Transparency: " .. m.Transparency .. " | Code: " .. code)
+                        print("📤 Sending (jewellery): " .. m.Name .. " | Transparency: " .. m.Transparency .. " | Code: " .. code)
                         RemoteEvents.RobEvent:FireServer(m, code, true)
                         task.wait(ProximityPromptTimeBetjewellery)
                         RemoteEvents.RobEvent:FireServer(m, code, false)
                         task.wait(0.5)
                         
                         if m and m.Parent and m.Transparency == 0 then
-                            : " .. m.Name .. " (Transparency: 0) - Will retry")
+                            print("♻️ Reset (jewellery): " .. m.Name .. " (Transparency: 0) - Tekrar deneyecek")
                             Collected[m] = nil
                         else
-                            : " .. m.Name .. " (Transparency: " .. (m and m.Transparency or 1) .. ")")
+                            print("✅ Toplandı (jewellery): " .. m.Name .. " (Transparency: " .. (m and m.Transparency or 1) .. ")")
                         end
                     end)
                 end
@@ -4414,8 +4856,11 @@ function JewelleryRob()
     local startTime = tick()
     local maxDuration = 15
     
+    print("💰 jeweler Toplama Başladı - Maksimum 15 saniye...")
+    
     while tick() - startTime < maxDuration do
         if detectPolice("Jewellery") then 
+            print("⚠️ Polis yaklaştığı için toplama kesildi!")
             break 
         end
         
@@ -4442,7 +4887,7 @@ function JewelleryRob()
         
         if visibleItems == 0 then
             local elapsed = math.floor(tick() - startTime)
-            ")
+            print("✓ Tüm öğeler toplandı! (" .. elapsed .. " saniye)")
             break
         end
         
@@ -4454,11 +4899,14 @@ function JewelleryRob()
     end
    
     if detectPolice("Jewellery") then return end
-
+    
+    -- ==================== DIAMOND PODIUM ====================
     if _G.jewelerExtraSelections["Diamond"] then
+        print("💎 Diamond Podium kontrol ediliyor...")
         local diamondPodium = workspace.Robberies["Jeweler Robbery"].Robbables["Diamond Podium"].Collectables.Diamond
         
         if diamondPodium and diamondPodium.Transparency == 0 then
+            print("💎 Diamond Podium bulundu, gidiliyor...")
             if detectPolice("Jewellery") then return end
             
             local diamondCFrame = CFrame.new(-423.879089, 21.2489128, 3587.24756, 0.999997258, 1.02761692e-08, -0.00233996939, -1.03946416e-08, 1, -5.06175333e-08, 0.00233996939, 5.06417166e-08, 0.999997258)
@@ -4476,18 +4924,25 @@ function JewelleryRob()
             end
             
             if detectPolice("Jewellery") then return end
+            print("📤 Diamond Podium collect ediliyor...")
             RemoteEvents.RobEvent:FireServer(diamondPodium, GOLD_COLLECT_CODE, true)
             task.wait(ProximityPromptTimeBetjewellery)
             RemoteEvents.RobEvent:FireServer(diamondPodium, GOLD_COLLECT_CODE, false)
             task.wait(0.5)
-            else
-            end
-    else
+            print("✅ Diamond Podium toplandı!")
+        else
+            print("⏭️ Diamond Podium Transparency 1, atlanıyor...")
         end
+    else
+        print("⏭️ Diamond soygunu seçili değil, Podium atlanıyor.")
+    end
     
     if detectPolice("Jewellery") then return end
-
+    
+    -- ==================== SHOWCASE VE EKSTRA ÖGELER ====================
     if _G.jewelerExtraSelections["Jewelry"] then
+        print("🎭 Showcase ve ekstra ögeler kontrol ediliyor...")
+        
         local showcasePaths = {
             {
                 name = "Jewelry Showcase",
@@ -4510,7 +4965,8 @@ function JewelleryRob()
                 cframe = CFrame.new(-441.302094, 21.2234135, 3581.63452, -0.0207861494, -6.09569497e-08, 0.999783933, 8.53050039e-08, 1, 6.27436663e-08, -0.999783933, 8.65907737e-08, -0.0207861494)
             }
         }
-
+        
+        -- Showcase ögelerini kontrol et ve sırala
         local validShowcases = {}
         for _, showcaseData in ipairs(showcasePaths) do
             if showcaseData.path and showcaseData.path:FindFirstChild("Collectables") then
@@ -4539,17 +4995,19 @@ function JewelleryRob()
                 end
             end
         end
-
+        
+        -- Sırala: Önce en çok görünür öge, sonra en yakın
         table.sort(validShowcases, function(a, b)
             if a.jewelryCount ~= b.jewelryCount then
                 return a.jewelryCount > b.jewelryCount
             end
             return a.distance < b.distance
         end)
-
+        
+        -- Showcase'leri topla
         for _, model in ipairs(validShowcases) do
             if detectPolice("Jewellery") then return end
-            ...")
+            print("🎯 " .. model.name .. " hedefine gidiliyor (" .. model.jewelryCount .. " Jewelry)...")
             plrTween(model.cframe)
             task.wait(0.5)
             
@@ -4564,35 +5022,46 @@ function JewelleryRob()
             end
             
             if detectPolice("Jewellery") then return end
-
+            
+            -- BATCH TOPLAMA: Tüm Jewelry'leri aynı anda topla (ŞIP DİYE!)
+            print("💨 " .. model.name .. " - " .. #model.jewelryItems .. " Jewelry BATCH toplanıyor...")
+            
+            -- Tüm jewelry'leri aynı anda FireServer ile gönder
             for _, jewelry in ipairs(model.jewelryItems) do
                 if jewelry and jewelry.Parent and jewelry.Transparency == 0 then
                     RemoteEvents.RobEvent:FireServer(jewelry, GOLD_COLLECT_CODE, true)
                 end
             end
-
+            
+            -- Kısa bekleme
             task.wait(ProximityPromptTimeBetjewellery)
-
+            
+            -- Tüm jewelry'leri aynı anda false ile gönder
             for _, jewelry in ipairs(model.jewelryItems) do
                 if jewelry and jewelry.Parent then
                     RemoteEvents.RobEvent:FireServer(jewelry, GOLD_COLLECT_CODE, false)
                 end
             end
             
+            print("✅ " .. model.name .. " - Batch toplama tamamlandı!")
             task.wait(0.3)
         end
     else
-        end
+        print("⏭️ Jewelry soygunu seçili değil, Showcase'ler atlanıyor.")
+    end
     
     if detectPolice("Jewellery") then return end
-
+    
+    -- ==================== EKSTRA DIAMOND [12] ====================
     if _G.jewelerExtraSelections["Diamond"] then
+        print("💎 Ekstra Diamond [12] kontrol ediliyor...")
         local extraDiamondParent = workspace.Robberies["Jeweler Robbery"].Robbables:GetChildren()[12]
         
         if extraDiamondParent and extraDiamondParent:FindFirstChild("Collectables") then
             local extraDiamond = extraDiamondParent.Collectables:FindFirstChild("Diamond")
             
             if extraDiamond and extraDiamond.Transparency == 0 then
+                print("💎 Ekstra Diamond bulundu, gidiliyor...")
                 if detectPolice("Jewellery") then return end
                 
                 local extraCFrame = CFrame.new(-415.241364, 5.47350025, 3594.17798, 0.66206181, 5.78554404e-09, 0.749449253, -1.44117092e-08, 1, 5.01154407e-09, -0.749449253, -1.41187968e-08, 0.66206181)
@@ -4610,19 +5079,26 @@ function JewelleryRob()
                 end
                 
                 if detectPolice("Jewellery") then return end
+                print("📤 Ekstra Diamond collect ediliyor...")
                 RemoteEvents.RobEvent:FireServer(extraDiamond, GOLD_COLLECT_CODE, true)
                 task.wait(ProximityPromptTimeBetjewellery)
                 RemoteEvents.RobEvent:FireServer(extraDiamond, GOLD_COLLECT_CODE, false)
                 task.wait(0.5)
-                else
-                end
+                print("✅ Ekstra Diamond toplandı!")
+            else
+                print("⏭️ Ekstra Diamond Transparency 1, atlanıyor...")
+            end
         end
     else
-         end
+         print("⏭️ Diamond soygunu seçili değil, Ekstra Diamond atlanıyor.")
+    end
     
     if detectPolice("Jewellery") then return end
-
+    
+    -- ==================== MULTI-ITEM SHOWCASES ====================
     if _G.jewelerExtraSelections["Jewelry"] then
+        print("🛍️ Multi-item Showcase'ler kontrol ediliyor...")
+        
         local multiPaths = {
             {
                 name = "GetChildren 10",
@@ -4655,7 +5131,8 @@ function JewelleryRob()
                 cframe = CFrame.new(-434.596832, 5.47350025, 3568.54126, 0.0263342224, -1.19114407e-09, -0.99965322, 3.06372994e-09, 1, -1.1108483e-09, 0.99965322, -3.03341396e-09, 0.0263342224)
             }
         }
-
+        
+        -- Multi-item showcase'leri kontrol et ve sırala
         local validMultiModels = {}
         for _, modelData in ipairs(multiPaths) do
             if modelData.path and modelData.path:FindFirstChild("Collectables") then
@@ -4684,17 +5161,19 @@ function JewelleryRob()
                 end
             end
         end
-
+        
+        -- Sırala: Önce en çok görünür öge, sonra en yakın
         table.sort(validMultiModels, function(a, b)
             if a.visibleCount ~= b.visibleCount then
                 return a.visibleCount > b.visibleCount
             end
             return a.distance < b.distance
         end)
-
+        
+        -- Multi-item showcase'leri topla (BATCH TOPLAMA SİSTEMİ)
         for _, model in ipairs(validMultiModels) do
             if detectPolice("Jewellery") then return end
-            ...")
+            print("🎯 " .. model.name .. " hedefine gidiliyor (" .. model.visibleCount .. " öğe)...")
             plrTween(model.cframe)
             task.wait(0.5)
             
@@ -4709,32 +5188,44 @@ function JewelleryRob()
             end
             
             if detectPolice("Jewellery") then return end
-
+            
+            -- BATCH TOPLAMA: Tüm öğeleri aynı anda topla (ŞIP DİYE!)
+            print("💨 " .. model.name .. " - " .. model.visibleCount .. " öğe BATCH toplanıyor...")
+            
+            -- Tüm öğeleri aynı anda FireServer ile gönder
             for _, item in ipairs(model.visibleItems) do
                 if item and item.Parent and item.Transparency == 0 then
                     RemoteEvents.RobEvent:FireServer(item, GOLD_COLLECT_CODE, true)
                 end
             end
-
+            
+            -- Kısa bekleme
             task.wait(ProximityPromptTimeBetjewellery)
-
+            
+            -- Tüm öğeleri aynı anda false ile gönder
             for _, item in ipairs(model.visibleItems) do
                 if item and item.Parent then
                     RemoteEvents.RobEvent:FireServer(item, GOLD_COLLECT_CODE, false)
                 end
             end
             
+            print("✅ " .. model.name .. " - Batch toplama tamamlandı!")
             task.wait(0.3)
         end
     else
-        end
+        print("⏭️ Jewelry soygunu seçili değil, Multi-item Showcase'ler atlanıyor.")
+    end
     
     if detectPolice("Jewellery") then return end
     
     jewellerylock = true
     jewelleryLockTime = os.time()
    
-    end
+    print("✅ jewellery Soygunu Tamamlandı!")
+end
+
+
+
 
 local function lockCameraToTarget(target)
     local camera = workspace.CurrentCamera
@@ -4742,6 +5233,7 @@ local function lockCameraToTarget(target)
         camera.CFrame = CFrame.new(camera.CFrame.Position, target.Position)
     end
 end
+
 
 function updateLocks()
     if clublock then
@@ -4751,7 +5243,8 @@ function updateLocks()
         elseif currentTime - clubLockTime >= locktime then
             clublock = false
             clubLockTime = nil
-            end
+            print("Club robbery unlocked!")
+        end
     end
 
     if banklock then
@@ -4761,7 +5254,8 @@ function updateLocks()
         elseif currentTime - bankLockTime >= locktime then
             banklock = false
             bankLockTime = nil
-            end
+            print("Bank robbery unlocked!")
+        end
     end
 
     if jewellerylock then
@@ -4771,7 +5265,8 @@ function updateLocks()
         elseif currentTime - jewelleryLockTime >= locktime then
             jewellerylock = false
             jewelleryLockTime = nil
-            end
+            print("Jewellery robbery unlocked!")
+        end
     end
     
     if gasngolock then
@@ -4781,7 +5276,8 @@ function updateLocks()
         elseif currentTime - gasngoLockTime >= locktime then
             gasngolock = false
             gasngoLockTime = nil
-            end
+            print("Gas-n-Go robbery unlocked!")
+        end
     end
 
     if containeronelock then
@@ -4791,7 +5287,8 @@ function updateLocks()
     elseif currentTime-containeroneLockTime>=locktime then
         containeronelock=false
         containeroneLockTime=nil
-        end
+        print("ContainerOne robbery unlocked!")
+    end
 end
 
 if containertwolock then
@@ -4801,7 +5298,8 @@ if containertwolock then
     elseif currentTime-containertwoLockTime>=locktime then
         containertwolock=false
         containertwoLockTime=nil
-        end
+        print("ContainerTwo robbery unlocked!")
+    end
 end
 
 if containerthreelock then
@@ -4811,7 +5309,8 @@ if containerthreelock then
     elseif currentTime-containerthreeLockTime>=locktime then
         containerthreelock=false
         containerthreeLockTime=nil
-        end
+        print("ContainerThree robbery unlocked!")
+    end
 end
 
 if containerfourlock then
@@ -4821,8 +5320,10 @@ if containerfourlock then
     elseif currentTime-containerfourLockTime>=locktime then
         containerfourlock=false
         containerfourLockTime=nil
-        end
+        print("ContainerFour robbery unlocked!")
+    end
 end
+
 
     if toollock then
         local currentTime = os.time()
@@ -4831,7 +5332,8 @@ end
         elseif currentTime - toolLockTime >= locktime then
             toollock = false
             toolLockTime = nil
-            end
+            print("Tool Shop robbery unlocked!")
+        end
     end
 
     if clothinglock then
@@ -4841,7 +5343,8 @@ end
         elseif currentTime - clothingLockTime >= locktime then
             clothinglock = false
             clothingLockTime = nil
-            end
+            print("Clothing Store robbery unlocked!")
+        end
     end
 
     if areslock then
@@ -4851,7 +5354,8 @@ end
         elseif currentTime - aresLockTime >= locktime then
             areslock = false
             aresLockTime = nil
-            end
+            print("Ares robbery unlocked!")
+        end
     end
     
     if farmlock then
@@ -4861,7 +5365,8 @@ end
         elseif currentTime - farmLockTime >= locktime then
             farmlock = false
             farmLockTime = nil
-            end
+            print("Farm robbery unlocked!")
+        end
     end
     
     if osolock then
@@ -4871,7 +5376,8 @@ end
         elseif currentTime - osoLockTime >= locktime then
             osolock = false
             osoLockTime = nil
-            end
+            print("Oso robbery unlocked!")
+                    end
 
                 end
 
@@ -4879,7 +5385,7 @@ end
 
 function checkBeforeRobbery()
     if isRespawning or not isHeaderRunning then
-        .. ", Header: " .. tostring(isHeaderRunning))
+        print("⚠️ Robbery başlatılamıyor - Respawn: " .. tostring(isRespawning) .. ", Header: " .. tostring(isHeaderRunning))
         return false
     end
     
@@ -4890,9 +5396,15 @@ function checkBeforeRobbery()
     return true
 end
 
+print("🚀 Starting robbery system...")
 task.spawn(header)
 
-local OrionLib = loadstring(game:HttpGet("https://moon-hub.pages.dev/orion.lua"))()
+
+
+-- Duplicate hopServer removed (Handled globaly)
+
+local OrionLib = loadstring(game:HttpGet("https://gist.githubusercontent.com/timprime837-sys/f0329995e8164fc79907975ef6f383fa/raw/b33b2cb9f85406a4525448cc2d76b6d306cbbe82/TrixoLib"))()
+
 
 local Window = OrionLib:MakeWindow({
     Name = "Autorob", 
@@ -4902,6 +5414,9 @@ local Window = OrionLib:MakeWindow({
     ConfigFolder = "RobberConfig",
     Icon = "rbxassetid://4483345998"
 })
+
+
+
 
 _G.vehicleHeight = CurrentConfig.vehicleHeight or -1.9
 _G.autoSellEnabled = CurrentConfig.autoSell
@@ -4934,6 +5449,7 @@ GuiService.ErrorMessageChanged:Connect(function()
     local PlaceId = game.PlaceId
     local JobId = game.JobId
 
+
     if IsSingle or JobId == lastServerId then
         local servers = {}
         local success, result = pcall(function()
@@ -4951,9 +5467,6 @@ GuiService.ErrorMessageChanged:Connect(function()
             end
         end
 
-        frameTween(CFrame.new(-882.8184204101562, 5.422455310821533, 3078.771728515625))
-        task.wait(300)
-
         if #servers > 0 then
             local targetServer = servers[math.random(1, #servers)]
             lastServerId = targetServer
@@ -4964,10 +5477,6 @@ GuiService.ErrorMessageChanged:Connect(function()
             TeleportService:Teleport(PlaceId, LocalPlayer)
         end
     else
-
-        frameTween(CFrame.new(-882.8184204101562, 5.422455310821533, 3078.771728515625))
-        task.wait(300)
-
         lastServerId = JobId
         frameTween(CFrame.new(-977.154358, 7.05404186, -1901.20703, -0.306000233, 0.120990045, -0.944312036, -0.0297048111, 0.990195334, 0.136494562, 0.951567888, 0.0698179752, -0.299406022))
         TeleportService:TeleportToPlaceInstance(PlaceId, JobId, LocalPlayer)
@@ -5051,6 +5560,7 @@ OptionsTab:AddMultiSelect({
         _G.jewelerExtraSelections = newSelections
         CurrentConfig.jewelerExtraRobSelection = Value
         SaveConfig()
+        print("Selected Jeweler Robbery Parts:", table.concat(Value, ", "))
     end    
 })
 
@@ -5122,7 +5632,7 @@ SettingsTab:AddSlider({
     Default = CurrentConfig.moneyToSaveValue,
     Color = Color3.fromRGB(255,255,255),
     Increment = 10000,
-    ValueName = "k",
+    ValueName = "k €",
     Save = true,
     Flag = "moneyToSaveValue",
     Callback = function(Value)
@@ -5159,8 +5669,9 @@ SettingsTab:AddToggle({
 getgenv().RejoinScript = [[
     if getgenv()._REJOIN_LOADED then return end
     getgenv()._REJOIN_LOADED = true
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/fluxgitscripts/wdsatwdsa/refs/heads/main/.lua"))()
-   ]]
+
+   print("AutoExecute")
+]]
 
 pcall(function()
     if queue_on_teleport then
